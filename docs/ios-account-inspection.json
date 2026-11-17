@@ -1,0 +1,78 @@
+{
+  "status": "source inspected; listed mocked contracts passed; mobile integration remains blocked",
+  "at": "2026-11-17T16:59:54.422Z",
+  "source": {
+    "reportedAppVersion": "1.15.1",
+    "sha256": "ffd620f9ee985cc4eb93ab25ba5871a33c9460b68035f2d74c8d4ddc2d43ef91",
+    "offsetsUtf16": {
+      "capturedFetch": 159313,
+      "accountClass": 163848,
+      "accountSingleton": 165269,
+      "accountRequest": 159499,
+      "fileEngine": 3222617,
+      "pluginGlobalEval": 2566313
+    }
+  },
+  "mode": "Selected original functions in isolated VM; all HTTP/storage are synthetic mocks; no app launched",
+  "checks": [
+    {
+      "name": "Supplied iOS source fingerprint and closure/request/engine shapes match inspected source",
+      "status": "passed"
+    },
+    {
+      "name": "SDK export table has no direct account-singleton or account-class export",
+      "status": "passed"
+    },
+    {
+      "name": "Account binding is private to the module; it is absent from the global scope",
+      "status": "passed"
+    },
+    {
+      "name": "Original plugin loader evaluates plugin code in global scope, without the enclosing account binding",
+      "status": "passed"
+    },
+    {
+      "name": "Original iOS file engine rejects synchronization without its captured account token",
+      "status": "passed"
+    },
+    {
+      "name": "A separately stored plugin session does not satisfy the native account gate",
+      "status": "passed"
+    },
+    {
+      "name": "Writing native account storage after construction does not update the captured account instance",
+      "status": "passed"
+    },
+    {
+      "name": "A new native account instance reads persisted state; this only passes the gate, not a transfer test",
+      "status": "passed"
+    },
+    {
+      "name": "Blind persisted-token restoration would send that token to the official account API during refresh (mock HTTP only)",
+      "status": "passed"
+    },
+    {
+      "name": "Replacing global fetch after module initialization does not intercept native account login",
+      "status": "passed"
+    },
+    {
+      "name": "Native login updates the exact account instance used by the unchanged file engine",
+      "status": "passed"
+    },
+    {
+      "name": "Native invalid-session refresh clears the captured token and blocks the file engine again",
+      "status": "passed"
+    },
+    {
+      "name": "Native logout revokes through its captured account API and clears persisted session fields",
+      "status": "passed"
+    }
+  ],
+  "unresolved": [
+    "No callable reversible plugin-level native-account session integration was found.",
+    "Captured HTTP fetch routing below the browser/native bridge is not established on iOS.",
+    "Absence of a direct export is not proof that every possible indirect integration is impossible.",
+    "No real iPhone custom login, synchronization, startup/reconnect or background test was performed."
+  ],
+  "distribution": "Only independent tooling, fingerprints and redacted results are distributed; source stays private."
+}

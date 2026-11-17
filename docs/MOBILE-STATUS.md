@@ -22,7 +22,7 @@ On mobile the plugin does not read its saved desktop activation settings, accoun
 | macOS desktop 1.8.7 / 1.15.1 | Existing experimental routing/relay adapter | Earlier full-app copied-bundle sandbox cases; current unit/build checks |
 | Windows / Linux desktop 1.8.7 / 1.15.1 | Same desktop adapter selected | Branch-selection tests; full-app platform qualification remains outstanding |
 | Other desktop versions | Existing adapter rejects activation | Exact version allowlist |
-| iOS 1.15.1 | Read-only diagnostic; custom Sync inactive | User's runtime screenshots plus simulated no-Node loading/report tests; no on-device run of this plugin yet |
+| iOS 1.15.1 | Read-only diagnostic; custom Sync inactive | User's runtime screenshots, actual mobile source inspection, mocked source contracts, and simulated no-Node loading/report tests; no on-device run of this plugin yet |
 | Android | Read-only diagnostic; custom Sync inactive | Simulated no-Node loading/report tests only; device/emulator qualification deferred |
 | Unknown platform | Read-only diagnostic; custom Sync inactive | Conservative loader behavior |
 
@@ -38,7 +38,7 @@ User-provided iPhone 1.15.1 inspections establish:
 4. The visible app object did not expose an obvious account/auth-named property. This is not proof that no reachable interface exists.
 5. The official mobile WebSocket sent `Origin: capacitor://localhost`. Our current server does not yet allow it.
 
-The available source archives in this workspace are desktop 1.8.7 and desktop 1.15.1. The complete actual iOS bundle was not supplied. Desktop inspection confirms an analogous module-scoped account dependency but does not prove iOS account reachability or safe startup behavior. No callable, reversible custom-session integration has therefore been established.
+The actual iOS bundle was subsequently supplied and inspected privately. Its SHA-256 is `ffd620f9ee985cc4eb93ab25ba5871a33c9460b68035f2d74c8d4ddc2d43ef91`. Thirteen isolated, mocked source checks confirm the private account binding, captured fetch behavior and storage/refresh risks. The user's runtime fetch check did not establish a Capacitor HTTP interception route. No callable, reversible custom-session integration has been found; see the [iOS source investigation](IOS-SOURCE-INVESTIGATION.md) and [redacted contract report](ios-account-inspection.json). The older diagnostic test report records the state at the time that prerelease was built.
 
 Following the agreed stop condition, this change does not implement mobile login, modify the native file engine, replace the account with a dummy/official token, write credentials into native account storage, or claim custom-session tests passed. It does not broaden server origins before there is a usable mobile adapter. Native `_sync()` remains unchanged.
 
@@ -73,8 +73,8 @@ No real iPhone or Android custom login, cross-device transfer, app startup/recon
 
 ## What is needed to resume implementation
 
-Provide the actual iOS `app.js` source (or sufficient account initialization/helper source) privately, obtained through Safari Web Inspector's Sources view. Do not send account storage or a raw network archive. Keep proprietary source out of the public repository and release assets.
+The actual iOS `app.js` prerequisite is now complete; no further host/socket screenshots or diagnostic installation are needed to establish the same account checks. Do not send account storage or a raw network archive. The supplied proprietary source stays outside the public repository and release assets.
 
-Then inspect account construction, reachable session methods, all official-request call sites, and startup ordering. Proceed only if a custom session can satisfy the native engine's checks without relying on an official login, leaking custom credentials to official services, or replacing the file engine. Account-changing verification needs a clean/dedicated mobile test environment; do not sign out the current phone account merely to run a probe.
+What is still needed is a callable session integration or a verified account-request interception layer below the captured fetch, with safe startup ordering. Proceed only if a custom session can satisfy the native engine's checks without relying on an official login, leaking custom credentials to official services, or replacing the file engine. Account-changing verification needs a clean/dedicated mobile test environment; do not sign out the current phone account merely to run a probe.
 
 If that gate passes, the subsequent work remains: plugin-owned mobile login/vault selection, direct WSS bootstrap, exact iOS Origin support on the server, session expiry/revocation handling, suspension/resumption, replay recovery and the full iPhone acceptance suite. Android then needs its own source/origin inspection and device qualification. Those steps are deliberately not represented as complete by this release.
