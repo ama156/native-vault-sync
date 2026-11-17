@@ -1,6 +1,6 @@
 # One plugin: desktop adapter and experimental iOS adapter — 0.1.2
 
-**Core iPhone flows are now user-confirmed on a real device (17 November 2026). Broader device qualification remains incomplete.** Version 0.1.2 contains an opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
+**iPhone note sync, offline convergence and close/reopen resumption are user-confirmed. Attachment syncing is reported failing in both directions and is under investigation (17 November 2026).** Version 0.1.2 contains an opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
 
 Use the [0.1.2 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.1.2). Upgrade the server to 0.1.2 first. No community-directory submission is being made.
 
@@ -76,7 +76,7 @@ This is a narrow adapter, not a whole-app network firewall. Use its setup screen
 | --- | --- | --- |
 | macOS desktop 1.8.7 / 1.15.1 | Existing routing/embedded relay adapter | Copied-app sandbox qualification and regression tests; no installed app used |
 | Windows / Linux desktop 1.8.7 / 1.15.1 | Same desktop adapter selected | Unit/branch tests; full platform qualification pending |
-| iOS 1.15.1, exact inspected methods | Opt-in experimental custom Sync adapter | Isolated original-engine proof plus user-confirmed bidirectional sync, offline convergence, app close/reopen, large attachment and checklist tests; broader qualification pending |
+| iOS 1.15.1, exact inspected methods | Opt-in experimental custom Sync adapter | Isolated original-engine proof plus user-confirmed note sync, offline convergence and app close/reopen; attachments reported failing in both directions; broader qualification pending |
 | Other iOS versions | Inactive read-only diagnostic | No adapter advertised |
 | Android | Inactive read-only diagnostic | No Android source/origin/device qualification yet |
 | Unknown platform | Inactive diagnostic | Guarded loader |
@@ -85,7 +85,7 @@ The [isolated proof report](ios-sync-proof.json) covers ten checks: wrong vault 
 
 Build/unit checks cover 23 cases across account capture/refusal, serialization guard, origin-bound sessions, cancellation, cleanup, secure-storage failure, browser-only loading, redacted diagnostics and the existing desktop relay/routing. Server tests exercise exact iOS Origin matching and retain authorization checks. See [validation record](ios-adapter-tests.json).
 
-**User-confirmed device results — 17 November 2026:** The owner reports successful phone↔desktop sync, offline-edit convergence, synchronization resuming after closing/reopening Obsidian, and an attachment larger than 2 MiB. They also confirmed every item in the preceding test checklist, covering an empty note, rename/delete, history and restore. These are manual user observations, not independently captured device logs or automated assertions. See the [device test record](ios-device-tests.json). The plugin/adapter version follows the existing 0.1.2 / iOS 1.15.1 installation context; a fresh device diagnostic was not supplied.
+**Corrected device results — 17 November 2026:** The owner reports successful phone↔desktop note sync, offline-edit convergence and resumption after closing/reopening Obsidian. They subsequently withdrew the attachment-success report: ZIP, EPUB, PDF and PNG attachments, both below and above 2 MB, fail to appear on the other device in either direction. The note/link arrives, but the attachment cannot be found. Attachment qualification is therefore **failed/unresolved**, not passed. Selective-sync settings, excluded folders and transfer behavior are being investigated. Other checklist results remain user-reported. See the [corrected device test record](ios-device-tests.json). No new device diagnostics or logs have been supplied.
 
 Still unverified on device: simultaneous conflicting edits, Canvas/folders/settings, plugin disable/reload cleanup, broader suspension/background/resume behavior, expiry/revocation/reauthentication, outage/interrupted-transfer recovery and startup/reconnect destination capture. Device model and iOS version were not provided. Android, Windows and Linux desktop retain their separate qualification limits. The build-time [validation record](ios-adapter-tests.json) and [source proof](ios-sync-proof.json) are historical records; their pending-device statements describe the state before this owner report.
 

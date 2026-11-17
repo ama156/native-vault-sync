@@ -1,6 +1,6 @@
 {
   "reportedAt": "2026-11-17",
-  "status": "Core iPhone flows passed according to owner; broader device qualification remains incomplete",
+  "status": "Note sync and recovery user-confirmed; attachment synchronization reported failing in both directions and under investigation",
   "evidenceType": "User-reported manual device tests; not independently observed or instrumented by the development harness",
   "buildContext": {
     "pluginRelease": "0.1.2",
@@ -13,11 +13,10 @@
     "Offline edits converge after reconnecting",
     "Synchronization resumes after closing and reopening Obsidian",
     "Empty note synchronization",
-    "Attachment larger than 2 MiB",
     "Note rename and deletion",
     "History and restore"
   ],
-  "scopeNote": "The owner explicitly confirmed bidirectional sync, offline convergence, close/reopen resumption and a >2 MB attachment, and confirmed all tests in the preceding checklist, which also included empty notes, rename/delete, history and restore.",
+  "scopeNote": "The owner corrected the earlier attachment-success report: attachment bytes do not arrive in either direction, despite the note/link synchronizing. The earlier >2 MB on-device success claim is withdrawn. Other previously reported note/offline/restart/checklist results remain user-reported; no device logs have been captured.",
   "notCollected": [
     "Device model and iOS version",
     "Fresh redacted compatibility report",
@@ -33,5 +32,30 @@
     "Canvas, folders and configuration synchronization",
     "Startup/reconnect network destinations and independent storage/privacy verification"
   ],
-  "otherPlatforms": "This report does not qualify Android, Windows or Linux desktop."
+  "otherPlatforms": "This report does not qualify Android, Windows or Linux desktop.",
+  "reportedIssues": [
+    {
+      "area": "attachments",
+      "status": "unresolved",
+      "types": [
+        "zip",
+        "epub",
+        "pdf",
+        "png"
+      ],
+      "directions": [
+        "iPhone to Mac",
+        "Mac to iPhone"
+      ],
+      "sizes": "Both below and above 2 MB, according to owner",
+      "symptom": "The containing note/link appears on the other device, but the linked attachment is missing and cannot be found.",
+      "configuration": "Selective-sync categories and excluded folders not yet confirmed."
+    }
+  ],
+  "correctionHistory": [
+    {
+      "reportedAt": "2026-11-17",
+      "change": "Withdraw prior on-device large-attachment pass after owner reported failures for ZIP, EPUB, PDF and PNG, at both small and large sizes."
+    }
+  ]
 }
