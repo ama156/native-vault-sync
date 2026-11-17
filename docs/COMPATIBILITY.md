@@ -1,6 +1,6 @@
 # Compatibility evidence and boundaries
 
-Tests use separately copied/downloaded resources, disposable profiles, synthetic notes, and a loopback server. The installed app is not patched. No proprietary client bundle or sandbox profile is shipped.
+Automated tests use separately copied/downloaded resources, disposable profiles, synthetic notes, and a loopback server. The installed app is not patched. No proprietary client bundle or sandbox profile is shipped.
 
 ## Client builds
 
@@ -28,6 +28,12 @@ Desktop 1.15.1 rejects loopback in its original connector and opens Settings in 
 
 The GitHub workflow runs Go's race detector and static analysis on Linux amd64, plugin tests, and both Linux cross-builds. Check its actual run status in GitHub Actions; arm64 execution requires an arm64 host and is not implied by cross-compilation.
 
+## User-confirmed iPhone tests — 17 November 2026
+
+After installing the 0.1.2 test build, the owner confirmed phone↔desktop note synchronization, offline convergence, synchronization resuming after closing/reopening Obsidian, and an attachment larger than 2 MiB. Their confirmation of the full checklist also covers an empty note, rename/delete, history and restore. See the [device test record](ios-device-tests.json) and [current mobile status](MOBILE-STATUS.md).
+
+This is user-reported manual evidence. No new device fingerprint, model/OS details, logs or network destination capture were supplied. Core iPhone flows are user-confirmed; this does not establish full device qualification, every conflict/recovery scenario, or Android/Windows/Linux desktop support. Historical build-time reports retain their original scope.
+
 ## Development harness
 
 `tools/native-contracts.cjs` requires:
@@ -48,10 +54,10 @@ The test owner email is `bridge@local.invalid`; initialize an isolated server ac
 
 ## Remaining limits
 
-- No Android/iOS adapter.
+- iOS 1.15.1 has an experimental adapter with user-confirmed core device flows; broader qualification remains incomplete. Android remains diagnostic only.
 - No official/custom account coexistence within one profile.
 - Developer Tools or another debugger can detach interception; the plugin reports failure and requires reactivation. Routing cannot exist before the plugin loads or while it is disabled.
 - No automatic history pruning, permanent purge, sharing, migration, or server-managed encryption.
-- The provided HTTPS/Nginx configuration has not been deployed to the owner's Linux machine. Public-domain TLS and the owner's actual storage filesystem need a deployment smoke test.
+- The owner reports successful phone synchronization through their setup; exact server deployment, TLS/reverse-proxy configuration and storage filesystem were not independently inspected.
 - Simulated write/commit failures and process crashes are tested; physical power-loss and every possible conflict scenario are not proven.
 - Community-directory acceptance is external to the code/release and remains a separate publication step.

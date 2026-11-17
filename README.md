@@ -14,7 +14,7 @@ The server is a single Linux binary behind your existing HTTPS reverse proxy. Th
 
 ## Current status
 
-Plugin/server **0.1.2** add an opt-in experimental **iOS 1.15.1** adapter: custom login, vault selection and direct WSS, retaining native Sync. The isolated original-engine proof passes; **actual iPhone qualification is pending**, and existing accounts/connections are refused. Desktop adapters remain limited to **1.8.7** and **1.15.1**; Android remains diagnostic only. Follow the [mobile test installation guide](docs/MOBILE-STATUS.md) and its evidence limits. No directory submission is planned during testing.
+Plugin/server **0.1.2** add an opt-in experimental **iOS 1.15.1** adapter: custom login, vault selection and direct WSS, retaining native Sync. The isolated original-engine proof passes, and **core iPhone sync/recovery flows are now user-confirmed**; broader qualification remains incomplete. Existing accounts/connections are refused. Desktop adapters remain limited to **1.8.7** and **1.15.1**; Android remains diagnostic only. Follow the [mobile test installation guide](docs/MOBILE-STATUS.md) and its evidence limits. No directory submission is planned during testing.
 
 The plugin is **not yet published or approved in the community directory**. A release ZIP cannot be installed by pasting its URL into Obsidian's normal plugin browser. Installation through **Settings → Community plugins → Browse** requires directory publication. The repository and submission instructions are in `docs/PUBLISHING.md`.
 

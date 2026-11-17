@@ -1,6 +1,6 @@
 # One plugin: desktop adapter and experimental iOS adapter — 0.1.2
 
-**The iOS account-integration proof now passes in an isolated source harness. A real iPhone is still required to qualify this build.** Version 0.1.2 contains an opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
+**Core iPhone flows are now user-confirmed on a real device (17 November 2026). Broader device qualification remains incomplete.** Version 0.1.2 contains an opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
 
 Use the [0.1.2 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.1.2). Upgrade the server to 0.1.2 first. No community-directory submission is being made.
 
@@ -50,7 +50,7 @@ BRAT contacts GitHub to download assets. Once loaded, this plugin sends its own 
 3. Enter the **custom-server** account email/password and choose **Sign in to custom server**. Do not use native account settings or official credentials. The adapter checks for a fresh native account before sending these credentials.
 4. Choose the previously created remote vault, enter its encryption password, and choose **Unlock and connect**. Account and vault passwords are not saved by the bridge. Native Sync derives the encryption key and performs file reconciliation.
 5. Check the native Sync status/log. Exchange a disposable note with the desktop, then test an empty note and an attachment larger than 2 MiB in both directions.
-6. Fully close/reopen the test app, then test airplane-mode edits and foreground/resume. These are required device checks, not already-qualified behavior.
+6. Fully close/reopen the test app, then test airplane-mode edits and foreground/resume. The owner has confirmed close/reopen resumption and offline convergence; broader background/suspension behavior still needs separate checks.
 
 An unused test installation may have a saved, completely empty signed-out account record. The optional **Prepare empty account record** button removes only a record with the exact allowed empty fields; then fully quit and reopen the test app. It refuses accounts, licenses, unknown fields and remote-vault connections. It never signs out an existing account. If any safeguard refuses activation, stop and share the redacted compatibility report; do not paste tokens, passwords, raw storage or source bundles.
 
@@ -62,7 +62,7 @@ The original iOS bundle captures its account object and `fetch` inside a private
 
 For the exact inspected version only, the adapter invokes the fingerprinted native connection-acquisition method with an inert receiver. A temporary, nonenumerable getter on `Object.prototype.token` captures the fresh account receiver at its account-presence check. It returns `undefined`, so that call exits before transport creation. The getter exists only for one synchronous call and is removed in `finally` **before any await or event-loop turn**. A preexisting prototype property, unexpected receiver, populated account or fingerprint mismatch refuses activation. The live file-engine instance is not used as that probe receiver.
 
-After successful custom-server login, per-instance account overrides expose a **local nonserializable session handle** to native presence checks. It is not a bearer token. JSON serialization and string coercion throw before captured native account helpers can issue a request with it. Native account refresh/logout delegate to the custom session; unsupported native login/license operations are blocked. The real server token stays inside the portable session client and is saved through Obsidian's device-local secret storage, bound to server origin and app/vault identity; it is not written to plugin `data.json` or native account storage. Secret-store persistence and startup ordering still need actual device verification.
+After successful custom-server login, per-instance account overrides expose a **local nonserializable session handle** to native presence checks. It is not a bearer token. JSON serialization and string coercion throw before captured native account helpers can issue a request with it. Native account refresh/logout delegate to the custom session; unsupported native login/license operations are blocked. The real server token stays inside the portable session client and is saved through Obsidian's device-local secret storage, bound to server origin and app/vault identity; it is not written to plugin `data.json` or native account storage. The owner reports session resumption after closing/reopening the app. Secret-store internals and startup network destinations have not been independently instrumented on the device.
 
 A per-instance accessor adapts each newly created native transport's connection bootstrap. It first checks `/vault/access`, then opens browser `WebSocket` directly to `wss://SERVER/sync`, using the real custom session and native keyhash/version. Native post-login message handlers, encryption, upload/download, history, replay and file-engine methods remain original. This project ships no copied proprietary engine code, local mobile relay or Node/Electron dependency on the mobile path.
 
@@ -76,7 +76,7 @@ This is a narrow adapter, not a whole-app network firewall. Use its setup screen
 | --- | --- | --- |
 | macOS desktop 1.8.7 / 1.15.1 | Existing routing/embedded relay adapter | Copied-app sandbox qualification and regression tests; no installed app used |
 | Windows / Linux desktop 1.8.7 / 1.15.1 | Same desktop adapter selected | Unit/branch tests; full platform qualification pending |
-| iOS 1.15.1, exact inspected methods | Opt-in experimental custom Sync adapter | Original native engine source in isolated VM + real Go listener; actual phone qualification pending |
+| iOS 1.15.1, exact inspected methods | Opt-in experimental custom Sync adapter | Isolated original-engine proof plus user-confirmed bidirectional sync, offline convergence, app close/reopen, large attachment and checklist tests; broader qualification pending |
 | Other iOS versions | Inactive read-only diagnostic | No adapter advertised |
 | Android | Inactive read-only diagnostic | No Android source/origin/device qualification yet |
 | Unknown platform | Inactive diagnostic | Guarded loader |
@@ -85,7 +85,9 @@ The [isolated proof report](ios-sync-proof.json) covers ten checks: wrong vault 
 
 Build/unit checks cover 23 cases across account capture/refusal, serialization guard, origin-bound sessions, cancellation, cleanup, secure-storage failure, browser-only loading, redacted diagnostics and the existing desktop relay/routing. Server tests exercise exact iOS Origin matching and retain authorization checks. See [validation record](ios-adapter-tests.json).
 
-Still required on an actual clean iPhone: login/vault selection, encrypted desktop↔phone transfers, Canvas, folders, large attachments, settings, rename/delete/history/restore, offline/concurrent edits, full app restart, plugin reload, background/resume, expiry/revocation, outage recovery and startup/reconnect destination capture. Android and Windows require their own platform runs before qualification.
+**User-confirmed device results — 17 November 2026:** The owner reports successful phone↔desktop sync, offline-edit convergence, synchronization resuming after closing/reopening Obsidian, and an attachment larger than 2 MiB. They also confirmed every item in the preceding test checklist, covering an empty note, rename/delete, history and restore. These are manual user observations, not independently captured device logs or automated assertions. See the [device test record](ios-device-tests.json). The plugin/adapter version follows the existing 0.1.2 / iOS 1.15.1 installation context; a fresh device diagnostic was not supplied.
+
+Still unverified on device: simultaneous conflicting edits, Canvas/folders/settings, plugin disable/reload cleanup, broader suspension/background/resume behavior, expiry/revocation/reauthentication, outage/interrupted-transfer recovery and startup/reconnect destination capture. Device model and iOS version were not provided. Android, Windows and Linux desktop retain their separate qualification limits. The build-time [validation record](ios-adapter-tests.json) and [source proof](ios-sync-proof.json) are historical records; their pending-device statements describe the state before this owner report.
 
 ## Reproduce the private source proof
 

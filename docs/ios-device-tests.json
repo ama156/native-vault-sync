@@ -1,0 +1,37 @@
+{
+  "reportedAt": "2026-11-17",
+  "status": "Core iPhone flows passed according to owner; broader device qualification remains incomplete",
+  "evidenceType": "User-reported manual device tests; not independently observed or instrumented by the development harness",
+  "buildContext": {
+    "pluginRelease": "0.1.2",
+    "adapterTarget": "iOS Obsidian 1.15.1",
+    "versionEvidence": "Existing installation/adapter context; no new device diagnostic or bundle fingerprint supplied"
+  },
+  "passed": [
+    "Phone-to-desktop note synchronization",
+    "Desktop-to-phone note synchronization",
+    "Offline edits converge after reconnecting",
+    "Synchronization resumes after closing and reopening Obsidian",
+    "Empty note synchronization",
+    "Attachment larger than 2 MiB",
+    "Note rename and deletion",
+    "History and restore"
+  ],
+  "scopeNote": "The owner explicitly confirmed bidirectional sync, offline convergence, close/reopen resumption and a >2 MB attachment, and confirmed all tests in the preceding checklist, which also included empty notes, rename/delete, history and restore.",
+  "notCollected": [
+    "Device model and iOS version",
+    "Fresh redacted compatibility report",
+    "Network destination capture",
+    "Device logs or automated assertions"
+  ],
+  "stillUnverifiedOnDevice": [
+    "Simultaneous conflicting edits across devices",
+    "Plugin disable/reload and owned-override cleanup",
+    "Session expiry/revocation and reauthentication",
+    "Server outage/restart and interrupted-upload recovery",
+    "Foreground/background suspension lifecycle beyond app close/reopen",
+    "Canvas, folders and configuration synchronization",
+    "Startup/reconnect network destinations and independent storage/privacy verification"
+  ],
+  "otherPlatforms": "This report does not qualify Android, Windows or Linux desktop."
+}
