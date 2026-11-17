@@ -4,6 +4,17 @@ const path = require("node:path");
 const root = path.resolve(__dirname, ".."),
   out = path.join(root, "plugin", "dist");
 fs.mkdirSync(out, { recursive: true });
+// A separate browser build makes accidental mobile imports of Node/Electron
+// a build error. Only the usual bundled main.js is distributed.
+esbuild.buildSync({
+  entryPoints: [path.join(root, "plugin", "src", "mobile-diagnostics.cjs")],
+  bundle: true,
+  platform: "browser",
+  format: "cjs",
+  target: "es2020",
+  external: ["obsidian"],
+  write: false,
+});
 esbuild.buildSync({
   entryPoints: [path.join(root, "plugin", "src", "entry.cjs")],
   outfile: path.join(out, "main.js"),

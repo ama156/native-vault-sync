@@ -1,0 +1,52 @@
+{
+  "pluginVersion": "0.1.1",
+  "mode": "diagnostic-only mobile; existing desktop adapter",
+  "at": "2026-11-17T16:35:18.753Z",
+  "commands": [
+    "npm run build:plugin",
+    "node --test --test-reporter=tap plugin/test/*.test.cjs"
+  ],
+  "status": "passed for listed tests; mobile synchronization blocked and untested",
+  "tests": [
+    "platform/version matrix selects desktop adapters and keeps every mobile Sync adapter inactive",
+    "mobile report is read-only, fingerprinted and excludes account/file/source values",
+    "diagnostics do not invoke getters and tolerate absent transports and crypto",
+    "mobile dependency graph builds for a browser with only the Obsidian SDK external",
+    "one bundled plugin loads on iOS/Android without process, Buffer, Node, Electron or network access",
+    "mobile clipboard failure keeps the local report selectable without logging an error body",
+    "desktop renderer and main-process entry points retain their original branches",
+    "only HTTPS origins and explicit local development origins are accepted",
+    "relay preserves text/binary message boundaries and closes without a separate process",
+    "wrong capability cannot reach the upstream",
+    "account routing changes only the destination; unsupported operations are blocked",
+    "one coordinator covers Settings windows, shares same-server leases, rejects conflicts, and cleans up",
+    "an existing external debugger is never detached or stolen",
+    "connection bootstrap preserves native handlers and is fully reversible"
+  ],
+  "desktopRegression": {
+    "runtime": "Separate workspace Electron runtime and copied unmodified app archives",
+    "appVersions": [
+      "1.8.7",
+      "1.15.1"
+    ],
+    "checks": [
+      "plugin 0.1.1 loads existing desktop adapter",
+      "both native engines reach synced state through their owned relays",
+      "synthetic Markdown transfers from legacy sandbox to current sandbox"
+    ],
+    "installedAppUsed": false
+  },
+  "mobile": {
+    "actualIOSBundleAvailable": false,
+    "deviceTestRun": false,
+    "syncAdapterActive": false,
+    "accountGate": "not-established",
+    "sourceEvidence": "User-provided iPhone screenshots show captured account token checks in both asyncGetServer and _sync.",
+    "requiredNextEvidence": "Actual iOS app.js account initialization/helper source, supplied privately."
+  },
+  "limits": [
+    "VM/browser-build checks do not qualify a real iPhone or Android runtime.",
+    "No mobile login, session refresh/expiry, transfer, restart, background/resume or origin behavior has been tested.",
+    "Uncommitted deployment/container work is excluded from this diagnostic release."
+  ]
+}

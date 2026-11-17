@@ -10,10 +10,11 @@ The server is a single Linux binary behind your existing HTTPS reverse proxy. Th
 - [API reference](docs/API-REFERENCE.md): every implemented HTTP route, JSON examples, WebSocket state machine, binary framing, history, restore and error semantics.
 - [OpenAPI 3.1 JSON](docs/HTTP-API.openapi.json): importable HTTP contract. WebSocket message sequencing is documented separately in the API reference.
 - [Compatibility and evidence](docs/COMPATIBILITY.md): exact app fingerprints, test reports and remaining qualification limits.
+- [Mobile diagnostic build](docs/MOBILE-STATUS.md): one desktop/mobile plugin asset, read-only iOS/Android inspection, the unresolved account-integration gate, and manual test installation.
 
 ## Current status
 
-Version 0.1.0 is an experimental release. Supported adapters are explicitly limited to desktop **1.8.7** and **1.15.1**. See `docs/COMPATIBILITY.md` and the JSON test reports for the evidence and remaining qualification limits. Other versions stay inactive.
+Plugin **0.1.1** is an experimental diagnostic prerelease. Desktop connection adapters remain limited to **1.8.7** and **1.15.1**; iOS and Android load a **read-only diagnostic with custom Sync inactive**. The native mobile account-session dependency is not resolved, so no mobile synchronization support is claimed. The server remains **0.1.0**. See [mobile status](docs/MOBILE-STATUS.md), `docs/COMPATIBILITY.md` and the test reports for evidence and limits. No directory submission is planned during testing.
 
 The plugin is **not yet published or approved in the community directory**. A release ZIP cannot be installed by pasting its URL into Obsidian's normal plugin browser. Installation through **Settings → Community plugins → Browse** requires directory publication. The repository and submission instructions are in `docs/PUBLISHING.md`.
 

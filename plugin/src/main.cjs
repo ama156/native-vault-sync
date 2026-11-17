@@ -9,7 +9,7 @@ const {
 const { Relay, validateServer } = require("./relay.cjs");
 const path = require("node:path");
 const { installBootstrap } = require("./connection-bootstrap.cjs");
-const SUPPORTED = new Set(["1.8.7", "1.15.1"]);
+const { DESKTOP_VERSIONS: SUPPORTED } = require("./compatibility.cjs");
 
 module.exports = class VaultSyncBridge extends Plugin {
   async onload() {
