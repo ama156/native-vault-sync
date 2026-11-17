@@ -1,0 +1,23 @@
+{
+  "milestone": "plugin-only full-app feasibility",
+  "status": "passed",
+  "application": "Copied, unmodified Obsidian 1.8.7 application resources",
+  "application_js_sha256": "fc1b1bede214e0f28266ce356b43c2aa36329a3b3cb47160f3a086110a03c9b5",
+  "runtime": "Separate workspace-only Electron 43.1.1 runtime",
+  "profiles": "Two isolated workspace profiles and disposable vaults",
+  "checks": [
+    "Native account dialog signed in to disposable backend",
+    "Native remote-vault selection and encryption-password dialog completed on both clients",
+    "Native engine login and ready on both clients",
+    "Markdown created through native vault API appeared in second client unchanged",
+    "Server storage did not contain the test note title or plaintext"
+  ],
+  "routing": "Electron debugger Fetch interception plus embedded loopback WebSocket relay",
+  "finding": "The application replaces public webRequest registration methods with no-ops. The working adapter leaves native request protections installed and uses Fetch interception instead.",
+  "limitations": [
+    "Loopback HTTP backend, not deployed HTTPS",
+    "Feasibility fixture is the prior research backend, not the durable Go implementation",
+    "Current stable client and original 1.8.7 installer runtime have not been qualified",
+    "The user's installed application is excluded from further tests"
+  ]
+}

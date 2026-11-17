@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "platform": "darwin",
+  "mode": "separate server subprocesses and real loopback sockets",
+  "checks": [
+    "acknowledged revision survives SIGKILL",
+    "partial upload never committed",
+    "abandoned upload removed on startup",
+    "session persists across restart",
+    "offline backup and restore into a fresh server preserve ciphertext"
+  ],
+  "at": "2026-11-16T23:46:38.959Z"
+}

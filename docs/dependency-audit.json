@@ -1,0 +1,19 @@
+{
+  "at": "2026-11-17T00:16:08.733Z",
+  "npm": {
+    "command": "npm audit --omit=dev",
+    "runtimeDependency": "ws@8.23.0",
+    "vulnerabilities": 0
+  },
+  "go": {
+    "command": "go run golang.org/x/vuln/cmd/govulncheck@latest ./...",
+    "toolchain": "go1.27.4",
+    "reachableVulnerabilities": 0,
+    "importedPackageVulnerabilities": 0,
+    "requiredModuleAdvisoriesWithoutCalledVulnerableSymbols": 19
+  },
+  "limitations": [
+    "Point-in-time checks; future advisories may change these results.",
+    "Required-module advisories are not claimed absent."
+  ]
+}

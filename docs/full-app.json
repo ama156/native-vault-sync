@@ -1,0 +1,39 @@
+{
+  "status": "passed for listed checks",
+  "clients": ["1.8.7", "1.15.1"],
+  "runtime": "Separate Electron 43.1.1 macOS runtime, unmodified app ASAR bundles",
+  "server": "Go implementation, disposable loopback HTTP listener",
+  "checks": [
+    "Native account sign-in, vault listing, creation, access and unlock against the Go server",
+    "Cross-version Markdown, Canvas, empty file, folder and attachment synchronization",
+    "Attachments larger than 2 MiB matched SHA-256 after native decryption",
+    "Folder rename propagated to both clients",
+    "Deletion and empty-file history restore propagated to the other client",
+    "Native app settings synchronization propagated",
+    "Current client default encryption version 3 transferred to legacy client",
+    "Application and server restart resumed the same encrypted remote vault",
+    "Plugin disable/re-enable restored getHost and current-client server property; vault state retained",
+    "Current-client separate Settings window routed vault-list request to loopback and closed without losing routing",
+    "Strict simultaneous offline edits completed on both clients while server stopped, then native merge converged to identical text preserving both edits"
+  ],
+  "attachmentSHA256": {
+    "legacy": "d9e650de69c3b523ee6a6b123683cbb87ec23426886125666f073879d23b3020",
+    "currentEncryption3": "647bc5cda7ac8c3ef3c8a6f4d203038907caa3d65de6ea9352f5ec142fad5a4f"
+  },
+  "routingEvidence": "Explicit user/info requests from both clients and vault/list from the current Settings window returned from 127.0.0.1; both native WebSocket URLs matched their owned relay URLs.",
+  "limits": [
+    "Copied app bundles in separate runtime, not qualification of complete standalone installers.",
+    "No test touches the installed app, actual profile, real notes or real account.",
+    "Public TLS, actual Linux deployment and arm64 execution remain untested.",
+    "Physical power loss and all conflict scenarios are not proven."
+  ],
+  "at": "2026-11-17T00:17:07.578Z",
+  "startupNetworkEvidence": {
+    "clients": ["1.8.7", "1.15.1"],
+    "method": "Session Chromium NetLog started before copied app initialization",
+    "syncDestinations": "Only owned loopback relay URLs in both captures",
+    "officialAccountAPIRequests": 0,
+    "otherNativeRequests": "Native community-plugin deprecation list on raw.githubusercontent.com; outside Sync/account routing scope",
+    "secrets": "Only this redacted summary is distributed; raw captures remain private"
+  }
+}

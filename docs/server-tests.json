@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "platform": "darwin/arm64",
+  "toolchain": "go1.27.4",
+  "commands": ["go test -race ./...", "go vet ./..."],
+  "tests": [
+    "TestNativeHTTPContractsAndPersistentSessions",
+    "TestMultipartRevisionHistoryDeletionRestore",
+    "TestInterruptedUploadAndLimits",
+    "TestReplayLargerThanQueueAndCrossVaultIsolation",
+    "TestRevokedLiveSessionAndBadOrigin",
+    "TestBackupRestoreAndExclusiveLock",
+    "TestAdvertisedPlaintextLimitAllowsGCMOverhead",
+    "TestCommitFailureAndStartupRecovery",
+    "TestDatabaseFailureDoesNotLogOutNativeAccount"
+  ],
+  "at": "2026-11-17T00:16:08.731Z"
+}

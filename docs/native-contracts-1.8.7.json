@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "client": "1.8.7",
+  "sourceSha256": "fc1b1bede214e0f28266ce356b43c2aa36329a3b3cb47160f3a086110a03c9b5",
+  "mode": "real loopback sockets against Go server; browser-task message delivery adapter",
+  "reports": [
+    {
+      "encryptionVersion": 0,
+      "status": "passed",
+      "checks": [
+        "hostname guard",
+        "native login and ready",
+        "native crypto round trip",
+        "ordered multi-piece transfer",
+        "native history delete restore",
+        "cursor replay"
+      ]
+    },
+    {
+      "encryptionVersion": 2,
+      "status": "passed",
+      "checks": [
+        "hostname guard",
+        "native login and ready",
+        "native crypto round trip",
+        "ordered multi-piece transfer",
+        "native history delete restore",
+        "cursor replay"
+      ]
+    },
+    {
+      "encryptionVersion": 3,
+      "status": "passed",
+      "checks": [
+        "hostname guard",
+        "native login and ready",
+        "native crypto round trip",
+        "ordered multi-piece transfer",
+        "native history delete restore",
+        "cursor replay"
+      ]
+    }
+  ],
+  "at": "2026-11-16T22:51:12.849Z"
+}

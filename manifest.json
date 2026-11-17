@@ -1,0 +1,9 @@
+{
+  "id": "vault-sync-bridge",
+  "name": "Vault Sync Bridge",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.7",
+  "description": "Connect native Sync to a personal compatible server through an embedded connection adapter.",
+  "author": "ama156",
+  "isDesktopOnly": true
+}

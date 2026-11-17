@@ -1,0 +1,25 @@
+[Unit]
+Description=Personal native Sync compatible server
+After=network.target
+
+[Service]
+Type=simple
+User=vault-sync
+Group=vault-sync
+ExecStart=/usr/local/bin/vault-sync-server serve --config /etc/vault-sync/config.json
+WorkingDirectory=/var/lib/vault-sync
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/vault-sync
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
