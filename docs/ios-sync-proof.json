@@ -1,0 +1,23 @@
+{
+  "status": "passed for isolated source integration; real iPhone qualification pending",
+  "at": "2026-11-17T18:58:23.576Z",
+  "sourceSha256": "ffd620f9ee985cc4eb93ab25ba5871a33c9460b68035f2d74c8d4ddc2d43ef91",
+  "mode": "Original iOS engine/crypto/transport in isolated VM, synthetic vault/secret adapters, real Go listener",
+  "checks": [
+    "Wrong vault password is rejected before upload, and only the unsuccessful new remote setup is rolled back",
+    "Original iOS account gate passes only after verified custom login; native HTTP serialization is blocked",
+    "Two original iOS native transports authenticate and reach ready through direct custom WebSockets with iOS Origin",
+    "Unmodified iOS file-engine loop uploads and downloads encrypted Markdown using synthetic vault adapters",
+    "Bidirectional native-engine encrypted note transfer",
+    "Native encryption/decryption and engine transfer preserve empty files and attachments over 2 MiB",
+    "New runtime restores the device secret, recaptures a fresh native account, and replays the remote vault",
+    "Native reconnect creates a replacement transport with the adapter restored on that instance",
+    "Server revocation clears the custom session and closes the native account presence gate",
+    "No native account storage writes and no official HTTP calls; all socket destinations are the disposable server"
+  ],
+  "limits": [
+    "No actual iPhone app run or filesystem lifecycle test.",
+    "Native mobile scrypt/WebView networking, real secure storage and background/resume are not qualified.",
+    "Fresh account state only; existing and saved signed-out accounts remain unsupported."
+  ]
+}

@@ -7,7 +7,7 @@ fs.mkdirSync(out, { recursive: true });
 // A separate browser build makes accidental mobile imports of Node/Electron
 // a build error. Only the usual bundled main.js is distributed.
 esbuild.buildSync({
-  entryPoints: [path.join(root, "plugin", "src", "mobile-diagnostics.cjs")],
+  entryPoints: [path.join(root, "plugin", "src", "ios-main.cjs")],
   bundle: true,
   platform: "browser",
   format: "cjs",

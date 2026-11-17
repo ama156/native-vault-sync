@@ -1,6 +1,6 @@
 # Vault Sync Bridge and personal server
 
-An experimental native-Sync-compatible personal server and desktop connection adapter. The plugin routes connections; Obsidian retains file indexing, encryption, transfer decisions, and merging. No application archive is patched. No separate desktop proxy or Docker installation is needed.
+An experimental native-Sync-compatible personal server, desktop connection adapter and opt-in iOS test adapter. The plugin routes connections; Obsidian retains file indexing, encryption, transfer decisions, and merging. No application archive is patched. No separate desktop proxy or Docker installation is needed.
 
 The server is a single Linux binary behind your existing HTTPS reverse proxy. The desktop plugin contains its own loopback WebSocket relay. This is an independent interoperability project, not an official Obsidian product.
 
@@ -10,11 +10,11 @@ The server is a single Linux binary behind your existing HTTPS reverse proxy. Th
 - [API reference](docs/API-REFERENCE.md): every implemented HTTP route, JSON examples, WebSocket state machine, binary framing, history, restore and error semantics.
 - [OpenAPI 3.1 JSON](docs/HTTP-API.openapi.json): importable HTTP contract. WebSocket message sequencing is documented separately in the API reference.
 - [Compatibility and evidence](docs/COMPATIBILITY.md): exact app fingerprints, test reports and remaining qualification limits.
-- [Mobile diagnostic build](docs/MOBILE-STATUS.md): one desktop/mobile plugin asset, read-only iOS/Android inspection, the unresolved account-integration gate, and manual test installation.
+- [Mobile test build](docs/MOBILE-STATUS.md): experimental iOS account/transport adapter, native-engine proof, compatibility matrix and test installation.
 
 ## Current status
 
-Plugin **0.1.1** is an experimental diagnostic prerelease. Desktop connection adapters remain limited to **1.8.7** and **1.15.1**; iOS and Android load a **read-only diagnostic with custom Sync inactive**. The native mobile account-session dependency is not resolved, so no mobile synchronization support is claimed. The server remains **0.1.0**. See [mobile status](docs/MOBILE-STATUS.md), `docs/COMPATIBILITY.md` and the test reports for evidence and limits. No directory submission is planned during testing.
+Plugin/server **0.1.2** add an opt-in experimental **iOS 1.15.1** adapter: custom login, vault selection and direct WSS, retaining native Sync. The isolated original-engine proof passes; **actual iPhone qualification is pending**, and existing accounts/connections are refused. Desktop adapters remain limited to **1.8.7** and **1.15.1**; Android remains diagnostic only. Follow the [mobile test installation guide](docs/MOBILE-STATUS.md) and its evidence limits. No directory submission is planned during testing.
 
 The plugin is **not yet published or approved in the community directory**. A release ZIP cannot be installed by pasting its URL into Obsidian's normal plugin browser. Installation through **Settings → Community plugins → Browse** requires directory publication. The repository and submission instructions are in `docs/PUBLISHING.md`.
 
@@ -119,7 +119,9 @@ The development-only native contract harness requires an explicitly supplied **s
 
 ## Network and privacy disclosure
 
-The plugin contacts only your configured server for its own operations. Native account requests to `api.obsidian.md` are intercepted and routed to that server while routing is active; unsupported account operations are blocked. Existing native request protections remain installed. The plugin uses Electron's debugging transport to intercept requests and coordinates Settings/popout windows inside the app process.
+On iOS 1.15.1, the experimental adapter uses plugin-owned account/vault screens and direct browser WebSockets, with per-instance native account guards. Other mobile builds remain inactive. See the [mobile guide](docs/MOBILE-STATUS.md) for credential storage, qualification limits and setup. This is not a whole-app firewall.
+
+The plugin contacts only your configured server for its own operations. On desktop, native account requests to `api.obsidian.md` are intercepted and routed to that server while routing is active; unsupported account operations are blocked. Existing native request protections remain installed. The desktop plugin uses Electron's debugging transport to intercept requests and coordinates Settings/popout windows inside the app process.
 
 Developer Tools or another debugger can detach the account interceptor. Close Developer Tools before activating the bridge. An unexpected detachment disconnects native Sync and reports a routing failure; re-enable routing afterward. Keep the bridge active when using the custom account, and sign out through native settings before disabling routing or changing servers. The adapter cannot replace native account routing while it is disabled or before it loads.
 

@@ -8,6 +8,10 @@ const root = path.resolve(__dirname, "..");
 const manifest = JSON.parse(
   fs.readFileSync(path.join(root, "manifest.json"), "utf8"),
 );
+if (manifest.version !== "0.1.1")
+  throw Error(
+    "Historical diagnostic packager is only for 0.1.1. Use npm run release for newer builds.",
+  );
 if (manifest.isDesktopOnly !== false)
   throw Error(
     "Mobile diagnostic installation must be enabled in the manifest.",

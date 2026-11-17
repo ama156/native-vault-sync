@@ -19,7 +19,7 @@ const sdkExternal = [
   "utf-8-validate",
 ];
 
-test("platform/version matrix selects desktop adapters and keeps every mobile Sync adapter inactive", () => {
+test("platform/version matrix separates qualified desktop support from opt-in unqualified iOS support", () => {
   for (const os of ["isMacOS", "isWin", "isLinux"]) {
     const platform = { isDesktopApp: true, [os]: true };
     assert.equal(compatibility(platform, "1.15.1").adapter, "desktop");
@@ -81,6 +81,7 @@ function fixture() {
   });
   const plugin = Object.freeze({ instance: native, enabled: true });
   const app = Object.freeze({
+    workspace: { onLayoutReady: (callback) => callback() },
     internalPlugins: Object.freeze({
       getPluginById(id) {
         assert.equal(id, "sync");
@@ -105,7 +106,7 @@ test("mobile report is read-only, fingerprinted and excludes account/file/source
     app,
     platform: { isIosApp: true },
     appVersion: "1.15.1",
-    pluginVersion: "0.1.1",
+    pluginVersion: "0.1.2",
     runtime: { subtle: webcrypto.subtle, TextEncoder, hasWebSocket: true },
   });
   assert.equal(report.mode, "read-only-diagnostics");
@@ -170,7 +171,7 @@ test("diagnostics do not invoke getters and tolerate absent transports and crypt
 
 test("mobile dependency graph builds for a browser with only the Obsidian SDK external", () => {
   const result = esbuild.buildSync({
-    entryPoints: [path.join(root, "plugin/src/mobile-diagnostics.cjs")],
+    entryPoints: [path.join(root, "plugin/src/ios-main.cjs")],
     bundle: true,
     platform: "browser",
     format: "cjs",
@@ -220,7 +221,7 @@ function sdk(platform) {
   class Plugin {
     constructor(app) {
       this.app = app;
-      this.manifest = { version: "0.1.1" };
+      this.manifest = { version: "0.1.2" };
     }
     addSettingTab(tab) {
       state.tabs.push(tab);
@@ -229,11 +230,16 @@ function sdk(platform) {
       state.commands.push(command);
     }
     loadData() {
-      throw Error("Saved settings must not be read on mobile");
+      return Promise.resolve({
+        enabled: true,
+        server: "https://desktop-only.example",
+        accountBinding: "https://desktop-only.example",
+      });
     }
     saveData() {
       throw Error("Saved settings must not be written on mobile");
     }
+    registerDomEvent() {}
   }
   class PluginSettingTab {
     constructor(app) {
@@ -256,6 +262,37 @@ function sdk(platform) {
       return this;
     }
     setDesc() {
+      return this;
+    }
+    addText(callback) {
+      const input = {
+        inputEl: {},
+        setPlaceholder() {
+          return this;
+        },
+        setValue() {
+          return this;
+        },
+        onChange() {
+          return this;
+        },
+      };
+      callback(input);
+      return this;
+    }
+    addDropdown(callback) {
+      const input = {
+        addOption() {
+          return this;
+        },
+        setValue() {
+          return this;
+        },
+        onChange() {
+          return this;
+        },
+      };
+      callback(input);
       return this;
     }
     addButton(callback) {
@@ -332,6 +369,8 @@ test("one bundled plugin loads on iOS/Android without process, Buffer, Node, Ele
           },
         },
       },
+      document: { hidden: false },
+      window: { setInterval: () => 1, clearInterval() {} },
     });
     Object.defineProperty(context, "localStorage", {
       get() {
@@ -345,14 +384,13 @@ test("one bundled plugin loads on iOS/Android without process, Buffer, Node, Ele
     await plugin.onload();
     assert.equal(
       plugin.state,
-      "Mobile diagnostics only — custom Sync is inactive",
+      platform.isIosApp
+        ? "Experimental iOS adapter inactive"
+        : "Mobile diagnostics only — custom Sync is inactive",
     );
     assert.equal(state.tabs.length, 1);
     state.tabs[0].display();
-    assert.deepEqual(
-      state.buttons.map((b) => b.text),
-      ["Inspect compatibility"],
-    );
+    assert.ok(state.buttons.some((b) => b.text === "Inspect compatibility"));
     const report = await state.commands[0].callback();
     assert.equal(report.routingActive, false);
     assert.equal(state.modals.length, 1);
@@ -363,6 +401,7 @@ test("one bundled plugin loads on iOS/Android without process, Buffer, Node, Ele
     state.modals[0].onClose();
     assert.equal(state.modals[0].report, null);
     assert.deepEqual([...new Set(required)], ["obsidian"]);
+    await plugin.onunload?.();
   }
 });
 
@@ -383,9 +422,13 @@ test("mobile clipboard failure keeps the local report selectable without logging
         },
       },
     },
+    document: { hidden: false },
+    window: { setInterval: () => 1, clearInterval() {} },
   });
   vm.runInContext(bundled, context);
-  const plugin = new module.exports({});
+  const plugin = new module.exports({
+    workspace: { onLayoutReady: (callback) => callback() },
+  });
   await plugin.onload();
   await plugin.inspect();
   await state.buttons.find((b) => b.text === "Copy report").click();
@@ -394,6 +437,7 @@ test("mobile clipboard failure keeps the local report selectable without logging
   );
   assert.equal(field.selected, true);
   assert.equal(state.notices.join("").includes("SECRET-ERROR"), false);
+  await plugin.onunload?.();
 });
 
 test("desktop renderer and main-process entry points retain their original branches", () => {

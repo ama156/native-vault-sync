@@ -10,5 +10,7 @@ if (typeof process !== "undefined" && process.type === "browser") {
   module.exports =
     compatibility(Platform).adapter === "desktop"
       ? require("./main.cjs")
-      : require("./mobile-diagnostics.cjs");
+      : Platform?.isIosApp && require("obsidian").apiVersion === "1.15.1"
+        ? require("./ios-main.cjs")
+        : require("./mobile-diagnostics.cjs");
 }

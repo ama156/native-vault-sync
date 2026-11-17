@@ -3,7 +3,7 @@
   "info": {
     "title": "Native Vault Sync HTTP API",
     "version": "0.1.0",
-    "description": "Independent compatible personal server, not an official public Obsidian API. Documents implementation baseline 5159ae5. Session tokens are JSON-body fields; security: [] does not imply account routes are unauthenticated. HTTP 200 may contain an error member. OPTIONS preflight returns 204 after approved Origin checks; headers permit GET,POST,OPTIONS and Content-Type. Allowed origins: app://obsidian.md, literal null, configured public origin, or no Origin. Unknown authenticated POST routes return 501; unrecognized JSON members are ignored. No signup, REST admin, sharing, migration or billing. WebSocket framing is specified separately.",
+    "description": "Independent compatible personal server, not an official public Obsidian API. Documents the 0.1.0 HTTP wire contract with 0.1.2 exact iOS Origin support. Session tokens are JSON-body fields; security: [] does not imply account routes are unauthenticated. HTTP 200 may contain an error member. OPTIONS preflight returns 204 after approved Origin checks; headers permit GET,POST,OPTIONS and Content-Type. Allowed origins: app://obsidian.md, capacitor://localhost, literal null, configured public origin, or no Origin. Unknown authenticated POST routes return 501; unrecognized JSON members are ignored. No signup, REST admin, sharing, migration or billing. WebSocket framing is specified separately.",
     "license": {
       "name": "MIT",
       "url": "https://github.com/ama156/native-vault-sync/blob/main/LICENSE"
@@ -72,7 +72,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -125,7 +125,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -156,7 +156,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -187,7 +187,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -245,7 +245,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -297,7 +297,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -328,7 +328,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -386,7 +386,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -436,7 +436,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -467,7 +467,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -525,7 +525,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -575,7 +575,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -606,7 +606,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -665,7 +665,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -717,7 +717,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -748,7 +748,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -807,7 +807,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -862,7 +862,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -893,7 +893,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -956,7 +956,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1013,7 +1013,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1044,7 +1044,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1106,7 +1106,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1156,7 +1156,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1187,7 +1187,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1247,7 +1247,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1297,7 +1297,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1328,7 +1328,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1387,7 +1387,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1437,7 +1437,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1468,7 +1468,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1512,7 +1512,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1543,7 +1543,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1574,7 +1574,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1621,7 +1621,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -1652,7 +1652,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, capacitor://localhost, null, or the configured public origin."
               },
               "Vary": {
                 "schema": {
@@ -2096,7 +2096,7 @@
           },
           "version": {
             "type": "string",
-            "const": "0.1.0"
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
           }
         },
         "required": [

@@ -13,7 +13,7 @@ const { collectReport } = require("./mobile-report.cjs");
 module.exports = class VaultSyncBridgeMobileDiagnostics extends Plugin {
   async onload() {
     this.state = "Mobile diagnostics only — custom Sync is inactive";
-    this.addSettingTab(new MobileSettings(this.app, this));
+    this.addSettingTab(this.createSettingsTab());
     this.addCommand({
       id: "inspect-mobile-compatibility",
       name: "Inspect mobile compatibility (read-only)",
@@ -21,6 +21,10 @@ module.exports = class VaultSyncBridgeMobileDiagnostics extends Plugin {
     });
     // Deliberately do not load saved enabled settings, read account storage,
     // patch methods, open sockets, or invoke setup/disconnect/requestSync.
+  }
+
+  createSettingsTab() {
+    return new MobileSettings(this.app, this);
   }
 
   async inspect() {
@@ -36,6 +40,12 @@ module.exports = class VaultSyncBridgeMobileDiagnostics extends Plugin {
           TextEncoder: globalThis.TextEncoder,
         },
       });
+      if (this.controller) {
+        report.routingActive = !!this.controller.session?.authenticated;
+        report.mode = report.routingActive
+          ? "experimental-ios-adapter-diagnostics"
+          : "read-only-diagnostics";
+      }
       new ReportModal(this.app, report).open();
       return report;
     } catch {
@@ -83,7 +93,7 @@ class ReportModal extends Modal {
     this.contentEl.empty();
     this.contentEl.createEl("h2", { text: "Mobile compatibility report" });
     this.contentEl.createEl("p", {
-      text: "Read-only observations. Custom Sync remains inactive. Share only this redacted report; do not export account storage or raw network captures.",
+      text: "Read-only observations; collecting this report does not change Sync state. Share only this redacted report; do not export account storage or raw network captures.",
     });
     const text = JSON.stringify(this.report, null, 2);
     const field = this.contentEl.createEl("textarea");

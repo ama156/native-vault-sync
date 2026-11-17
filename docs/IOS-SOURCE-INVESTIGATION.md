@@ -2,7 +2,9 @@
 
 The actual exported iPhone `app.js` has now been supplied and inspected privately. Its SHA-256 is `ffd620f9ee985cc4eb93ab25ba5871a33c9460b68035f2d74c8d4ddc2d43ef91`. It differs from the desktop 1.15.1 archive. The supplied `cm-addons.js` is editor support code and did not expose an additional Sync/account interface in this inspection.
 
-**Outcome: native mobile account integration is still blocked.** This is a finding about the inspected interfaces, not proof that every possible private hook is impossible. No mobile Sync activation, account mutation, real HTTP request, or app launch was performed as part of these source checks.
+**Historical outcome at the first inspection: native mobile account integration was blocked.** This is a finding about the inspected interfaces, not proof that every possible private hook is impossible. No mobile Sync activation, account mutation, real HTTP request, or app launch was performed as part of these source checks.
+
+**Update — plugin 0.1.2:** A strictly fingerprinted, synchronous fresh-account capture and per-instance custom-session binding now pass the isolated native-engine proof. See [current mobile implementation and installation](MOBILE-STATUS.md) and [proof report](ios-sync-proof.json). The findings below describe the earlier investigation; actual iPhone qualification remains pending. No proprietary engine code is redistributed.
 
 ## What the source establishes
 

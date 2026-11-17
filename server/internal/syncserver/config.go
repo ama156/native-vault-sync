@@ -12,7 +12,7 @@ import (
 const Chunk = 2097152
 const DefaultFileMax int64 = 208666624
 const Service = "vault-sync-server"
-const Version = "0.1.0"
+const Version = "0.1.2"
 
 type Config struct {
 	Listen     string `json:"listen"`

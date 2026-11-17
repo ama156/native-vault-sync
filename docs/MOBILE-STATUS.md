@@ -1,80 +1,103 @@
-# Desktop and mobile diagnostic build — plugin 0.1.1
+# One plugin: desktop adapter and experimental iOS adapter — 0.1.2
 
-**iOS/Android custom synchronization is blocked at the account-integration milestone.** This build is one plugin asset with the existing desktop adapter and an inactive, read-only mobile diagnostic. It is not a working mobile Sync adapter.
+**The iOS account-integration proof now passes in an isolated source harness. A real iPhone is still required to qualify this build.** Version 0.1.2 contains an opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
 
-The server remains 0.1.0; no server upgrade is needed to collect this report. No community-directory submission has been made or requested. Use a manually installed test build only.
+Use the [0.1.2 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.1.2). Upgrade the server to 0.1.2 first. No community-directory submission is being made.
 
-## What is implemented
+## Before installing
 
-- One plugin ID, `vault-sync-bridge`, and the normal `main.js` / `manifest.json` release assets.
-- Guarded loading: Electron main-process coordination stays in its own branch, desktop renderers use the existing desktop adapter, and iOS/Android use the browser-only diagnostic.
-- A shared platform/version compatibility module. Unknown platforms take the inactive diagnostic path.
-- An explicit build check that the mobile dependency graph compiles for a browser with only the Obsidian SDK external. Node/Electron imports in that graph fail the build.
-- A mobile settings page and command, **Inspect mobile compatibility (read-only)**, that produce a redacted report only when requested.
-- A selectable report with a clipboard action and a manual-copy fallback. Reports are not saved, logged or uploaded.
+This adapter requires **iOS Obsidian 1.15.1 with the inspected method fingerprints**, an unused native account instance, and a disposable local vault with no other remote Sync connection. It refuses existing accounts and saved signed-out accounts. A second vault does not isolate Obsidian's global account state.
 
-On mobile the plugin does not read its saved desktop activation settings, account storage, vault keys, host addresses, note names or note contents. It does not invoke native Sync setup, disconnect, resume, connection, indexing or file methods. It installs no account/session/transport overrides and initiates no HTTP or WebSocket requests. Existing native Sync may continue operating independently; this diagnostic is not a firewall or replacement for it.
+**Do not sign out or reset your everyday phone account just to try this build.** If your phone already uses an account, use a clean dedicated test device/app environment. This project does not provide a supported second iOS app installation. Installing the plugin to collect its compatibility report is possible without activation; actual account integration needs that clean environment.
 
-## Compatibility matrix
+On desktop, create a disposable end-to-end encrypted remote vault on your custom server first. The initial iOS UI selects existing remote vaults; creating, renaming or deleting remote vaults remains a desktop operation. Do not use important notes for device qualification.
 
-| Platform/build | This release's behavior | Evidence |
+## Upgrade the Linux server
+
+Download the matching `vault-sync-server_0.1.2_linux_amd64.tar.gz` or `arm64` archive and verify `SHA256SUMS`. Keep your existing configuration and data directory. For the binary/systemd installation:
+
+```sh
+sudo systemctl stop vault-sync
+sudo -u vault-sync vault-sync-server backup \
+  --config /etc/vault-sync/config.json \
+  --output /var/lib/vault-sync/pre-ios-0.1.2.tar.gz
+# After unpacking the matching archive in your working directory:
+sudo install -m 0755 vault-sync-server /usr/local/bin/vault-sync-server
+sudo systemctl start vault-sync
+curl https://YOUR-SERVER/healthz
+```
+
+Health must report `version: "0.1.2"`, `bridge_protocol: 1` and `ready: true`. No database migration or reinitialization is needed. Keep the existing HTTPS/WebSocket reverse-proxy configuration. Version 0.1.2 adds the exact `capacitor://localhost` Origin to both HTTP/preflight and WebSocket validation; tokens, vault access, keyhash and encryption-version checks still apply. It does not broadly enable Android/browser origins.
+
+## Install on iPhone
+
+There is one plugin ID, `vault-sync-bridge`, and one `main.js` / `manifest.json` pair for every platform.
+
+For convenient test installation, use [BRAT](https://github.com/TfTHacker/obsidian42-brat), which installs GitHub test releases without submitting this plugin to the community directory:
+
+1. In the **clean test environment**, install and enable BRAT from Community plugins.
+2. Use BRAT's **Add a beta plugin for testing** command/settings. Enter `ama156/native-vault-sync` and select/freeze version **0.1.2**. The [BRAT developer guide](https://github.com/TfTHacker/obsidian42-brat/blob/main/BRAT-DEVELOPER-GUIDE.md) documents specific-release and prerelease installation.
+3. Enable **Vault Sync Bridge** in Community plugins. Confirm its displayed version is **0.1.2**.
+
+Alternatively, disable the bridge and copy `main.js` and `manifest.json` from that release into the disposable vault's configured plugin directory, normally `.obsidian/plugins/vault-sync-bridge/`, then enable it. iOS Files may hide dot directories; use a trusted vault file-access method. Copy only the plugin assets, never an existing app/account database. Neither route requires changing `/Applications/Obsidian.app`.
+
+BRAT contacts GitHub to download assets. Once loaded, this plugin sends its own account and Sync operations to the configured custom server. Directory publication remains deferred.
+
+## Configure the iOS test
+
+1. Enable the **Sync core plugin**, and open **Vault Sync Bridge** settings in the disposable vault.
+2. Enter your server's HTTPS origin, such as `https://sync.example.com`, then choose **Test server**.
+3. Enter the **custom-server** account email/password and choose **Sign in to custom server**. Do not use native account settings or official credentials. The adapter checks for a fresh native account before sending these credentials.
+4. Choose the previously created remote vault, enter its encryption password, and choose **Unlock and connect**. Account and vault passwords are not saved by the bridge. Native Sync derives the encryption key and performs file reconciliation.
+5. Check the native Sync status/log. Exchange a disposable note with the desktop, then test an empty note and an attachment larger than 2 MiB in both directions.
+6. Fully close/reopen the test app, then test airplane-mode edits and foreground/resume. These are required device checks, not already-qualified behavior.
+
+An unused test installation may have a saved, completely empty signed-out account record. The optional **Prepare empty account record** button removes only a record with the exact allowed empty fields; then fully quit and reopen the test app. It refuses accounts, licenses, unknown fields and remote-vault connections. It never signs out an existing account. If any safeguard refuses activation, stop and share the redacted compatibility report; do not paste tokens, passwords, raw storage or source bundles.
+
+To disable, use **Sign out / disable**, or disable the plugin. Custom connections close and native Sync is paused. Local notes and the native index/history state remain. Sign-out revokes the custom server session. Plugin unload preserves its device secret for resumption when reenabled. An expired/revoked session requires signing out in bridge settings and signing in again.
+
+## How the adapter works
+
+The original iOS bundle captures its account object and `fetch` inside a private closure. Changing global `fetch` or writing localStorage after startup cannot update that object. Our source inspection is recorded in [the earlier investigation](IOS-SOURCE-INVESTIGATION.md).
+
+For the exact inspected version only, the adapter invokes the fingerprinted native connection-acquisition method with an inert receiver. A temporary, nonenumerable getter on `Object.prototype.token` captures the fresh account receiver at its account-presence check. It returns `undefined`, so that call exits before transport creation. The getter exists only for one synchronous call and is removed in `finally` **before any await or event-loop turn**. A preexisting prototype property, unexpected receiver, populated account or fingerprint mismatch refuses activation. The live file-engine instance is not used as that probe receiver.
+
+After successful custom-server login, per-instance account overrides expose a **local nonserializable session handle** to native presence checks. It is not a bearer token. JSON serialization and string coercion throw before captured native account helpers can issue a request with it. Native account refresh/logout delegate to the custom session; unsupported native login/license operations are blocked. The real server token stays inside the portable session client and is saved through Obsidian's device-local secret storage, bound to server origin and app/vault identity; it is not written to plugin `data.json` or native account storage. Secret-store persistence and startup ordering still need actual device verification.
+
+A per-instance accessor adapts each newly created native transport's connection bootstrap. It first checks `/vault/access`, then opens browser `WebSocket` directly to `wss://SERVER/sync`, using the real custom session and native keyhash/version. Native post-login message handlers, encryption, upload/download, history, replay and file-engine methods remain original. This project ships no copied proprietary engine code, local mobile relay or Node/Electron dependency on the mobile path.
+
+Method replacements are tracked and restored on unload. Server/account switching is refused while a session exists. Foreground/focus events and a foreground refresh timer refresh authorization and request native replay. There is **no continuous iOS background-sync promise**. Temporary outages keep native changes queued; expiry pauses the custom connection.
+
+This is a narrow adapter, not a whole-app network firewall. Use its setup screens; unrelated app services may still contact their own destinations. The isolated proof records no official account requests during the exercised custom flows. Complete startup/reconnect destination capture on the actual phone remains outstanding.
+
+## Compatibility and evidence
+
+| Platform/build | 0.1.2 behavior | Evidence / limit |
 | --- | --- | --- |
-| macOS desktop 1.8.7 / 1.15.1 | Existing experimental routing/relay adapter | Earlier full-app copied-bundle sandbox cases; current unit/build checks |
-| Windows / Linux desktop 1.8.7 / 1.15.1 | Same desktop adapter selected | Branch-selection tests; full-app platform qualification remains outstanding |
-| Other desktop versions | Existing adapter rejects activation | Exact version allowlist |
-| iOS 1.15.1 | Read-only diagnostic; custom Sync inactive | User's runtime screenshots, actual mobile source inspection, mocked source contracts, and simulated no-Node loading/report tests; no on-device run of this plugin yet |
-| Android | Read-only diagnostic; custom Sync inactive | Simulated no-Node loading/report tests only; device/emulator qualification deferred |
-| Unknown platform | Read-only diagnostic; custom Sync inactive | Conservative loader behavior |
+| macOS desktop 1.8.7 / 1.15.1 | Existing routing/embedded relay adapter | Copied-app sandbox qualification and regression tests; no installed app used |
+| Windows / Linux desktop 1.8.7 / 1.15.1 | Same desktop adapter selected | Unit/branch tests; full platform qualification pending |
+| iOS 1.15.1, exact inspected methods | Opt-in experimental custom Sync adapter | Original native engine source in isolated VM + real Go listener; actual phone qualification pending |
+| Other iOS versions | Inactive read-only diagnostic | No adapter advertised |
+| Android | Inactive read-only diagnostic | No Android source/origin/device qualification yet |
+| Unknown platform | Inactive diagnostic | Guarded loader |
 
-`isDesktopOnly:false` permits diagnostic installation on mobile. It is not a claim that mobile synchronization is supported. A successful report also does not establish that an adapter can authenticate or transfer encrypted revisions.
+The [isolated proof report](ios-sync-proof.json) covers ten checks: wrong vault password, custom account gating, direct transport login/ready, native encrypted Markdown transfer both ways, empty files and >2 MiB attachments, new-runtime secret restoration/replay, replacement transport reconnect, revocation, and custom-only exercised destinations/native-account-storage isolation. It uses the original supplied file engine with synthetic vault/secret adapters and Node-backed development scrypt/WebSocket facilities. It is **not a run of the complete iPhone app** or proof of WebView crypto/networking, device keychain persistence, native filesystem/database restoration, UI lifecycle or background execution.
 
-## Why the first milestone is blocked
+Build/unit checks cover 23 cases across account capture/refusal, serialization guard, origin-bound sessions, cancellation, cleanup, secure-storage failure, browser-only loading, redacted diagnostics and the existing desktop relay/routing. Server tests exercise exact iOS Origin matching and retain authorization checks. See [validation record](ios-adapter-tests.json).
 
-User-provided iPhone 1.15.1 inspections establish:
+Still required on an actual clean iPhone: login/vault selection, encrypted desktop↔phone transfers, Canvas, folders, large attachments, settings, rename/delete/history/restore, offline/concurrent edits, full app restart, plugin reload, background/resume, expiry/revocation, outage recovery and startup/reconnect destination capture. Android and Windows require their own platform runs before qualification.
 
-1. The native Sync instance and its transport are accessible and extensible. `getHost`, `setup`, and transport `connect` are writable/configurable; the engine's `server` property is configurable.
-2. The transport's original connector enforces the official `.obsidian.md` hostname suffix. A direct custom connection would require an independent browser-WebSocket bootstrap.
-3. Both `_sync()` and `asyncGetServer()` reference the module-scoped account token (`be.token` in that mobile bundle). Obtaining a custom token in plugin settings does not satisfy those captured checks.
-4. The visible app object did not expose an obvious account/auth-named property. This is not proof that no reachable interface exists.
-5. The official mobile WebSocket sent `Origin: capacitor://localhost`. Our current server does not yet allow it.
+## Reproduce the private source proof
 
-The actual iOS bundle was subsequently supplied and inspected privately. Its SHA-256 is `ffd620f9ee985cc4eb93ab25ba5871a33c9460b68035f2d74c8d4ddc2d43ef91`. Thirteen isolated, mocked source checks confirm the private account binding, captured fetch behavior and storage/refresh risks. The user's runtime fetch check did not establish a Capacitor HTTP interception route. No callable, reversible custom-session integration has been found; see the [iOS source investigation](IOS-SOURCE-INVESTIGATION.md) and [redacted contract report](ios-account-inspection.json). The older diagnostic test report records the state at the time that prerelease was built.
+Supply the legally obtained iOS bundle privately; its expected SHA-256 is `ffd620f9ee985cc4eb93ab25ba5871a33c9460b68035f2d74c8d4ddc2d43ef91`. Neither it nor extracted source bodies belong in releases or commits.
 
-Following the agreed stop condition, this change does not implement mobile login, modify the native file engine, replace the account with a dummy/official token, write credentials into native account storage, or claim custom-session tests passed. It does not broaden server origins before there is a usable mobile adapter. Native `_sync()` remains unchanged.
+```sh
+cd server
+go build -o /tmp/vault-sync-ios-proof ./cmd/vault-sync-server
+cd ..
+OBSIDIAN_IOS_SOURCE=/absolute/private/path/app.js \
+SYNC_TEST_BINARY=/tmp/vault-sync-ios-proof \
+node tools/ios-sync-proof.cjs
+```
 
-## Install the diagnostic manually
-
-1. Download the **0.1.1 mobile diagnostic prerelease**, not the 0.1.0 desktop-only ZIP. It contains `main.js`, `manifest.json` and this guide.
-2. Unzip the plugin assets into the selected vault's configured plugin directory, normally `.obsidian/plugins/vault-sync-bridge/`. The two files must be directly in that directory, not in another nested ZIP folder.
-3. On iOS, use a trusted file-access method for the actual vault, or stage the files in a disposable vault on another device and transfer that vault. The iOS Files UI may hide dot directories; this project does not promise a one-click iOS installer. Never copy an entire real profile/account database to obtain these two files.
-4. Enable the already-installed **Vault Sync Bridge** under Settings → Community plugins. It will not appear in Browse because directory publication is deferred.
-5. Open the bridge settings and choose **Inspect compatibility**, or run its read-only inspection command.
-6. Copy the redacted JSON report and share it in this private chat. Do not sign out, call native `setup()`, replace the current remote vault, or enter real credentials for this diagnostic.
-
-Merely collecting the report is read-only with respect to accounts and notes. Installing/enabling a community plugin necessarily changes the selected vault's plugin files and plugin enablement setting, which the vault's existing synchronization may propagate. For minimal disruption, prefer a disposable test vault; a separate vault does not isolate the app's global account session.
-
-If the same plugin was already installed on desktop, normal desktop behavior is retained, including any saved enabled routing. This mobile diagnostic does not disable or overwrite desktop settings synced between devices. To remove it on mobile, disable it; it has no native overrides or connections to restore. Manual file installation/update should occur with the plugin disabled to avoid mixing old/new assets.
-
-## Report format and privacy
-
-Schema identifier: `vault-sync-bridge.mobile-diagnostics.v1`.
-
-The report contains plugin/app version, platform classification, inactive routing status, browser WebSocket/WebCrypto capability flags, native instance availability, data-property descriptors, method source lengths, SHA-256 fingerprints where available, and whether those sources mention a token property or the official domain. It does not print function source, token values, passwords, raw keys, host URLs, vault IDs/paths, socket URLs or note data.
-
-Function fingerprints identify inspected methods, not the complete bundle. Presence of `.token` in source is a structural clue, not a live account-state read or proof of a particular control-flow path. Getters are not invoked by descriptor inspection. The plugin calls the existing plugin-registry lookup only to locate the Sync instance, without enabling or configuring it.
-
-The diagnostic is trusted plugin code running inside the app; read-only behavior is an implementation restriction verified by tests, not an OS-enforced privilege boundary. Sharing a report is a manual user action.
-
-## Tests and what is not tested
-
-The mobile tests cover platform/version selection, rejection of Node dependencies in a browser build, running the complete shared asset without `process`/Buffer/Node/Electron, prevention of account/file/network access, immutable native objects, source-value redaction, getter avoidance, missing transports/crypto, clipboard fallback and preservation of desktop/main-process loader branches. Existing relay/routing/bootstrap tests continue to run.
-
-No real iPhone or Android custom login, cross-device transfer, app startup/reconnect, account refresh/expiry, background/resume, large attachment, history, restore or conflict test has passed for a mobile adapter. The screenshots show original native behavior against official infrastructure, not this diagnostic or the custom server.
-
-## What is needed to resume implementation
-
-The actual iOS `app.js` prerequisite is now complete; no further host/socket screenshots or diagnostic installation are needed to establish the same account checks. Do not send account storage or a raw network archive. The supplied proprietary source stays outside the public repository and release assets.
-
-What is still needed is a callable session integration or a verified account-request interception layer below the captured fetch, with safe startup ordering. Proceed only if a custom session can satisfy the native engine's checks without relying on an official login, leaking custom credentials to official services, or replacing the file engine. Account-changing verification needs a clean/dedicated mobile test environment; do not sign out the current phone account merely to run a probe.
-
-If that gate passes, the subsequent work remains: plugin-owned mobile login/vault selection, direct WSS bootstrap, exact iOS Origin support on the server, session expiry/revocation handling, suspension/resumption, replay recovery and the full iPhone acceptance suite. Android then needs its own source/origin inspection and device qualification. Those steps are deliberately not represented as complete by this release.
+The harness creates a disposable loopback server/data directory and isolated JS realms. It never launches Obsidian or accesses a real vault/account. The source is parsed and fingerprinted locally, not copied into the distributed plugin. This private proof is separate from public CI, where proprietary source is unavailable.

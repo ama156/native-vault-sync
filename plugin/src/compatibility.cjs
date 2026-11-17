@@ -30,7 +30,11 @@ function compatibility(platform, version) {
       available && name === "macos"
         ? "copied-app-bundle-sandbox-tested"
         : "unqualified",
-    mobileAccountGate: "not-established",
+    experimentalIOSAdapterAvailable: name === "ios" && version === "1.15.1",
+    mobileAccountGate:
+      name === "ios" && version === "1.15.1"
+        ? "isolated-source-proof-passed; device-test-pending"
+        : "not-established",
   };
 }
 

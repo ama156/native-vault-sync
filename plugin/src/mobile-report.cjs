@@ -76,7 +76,7 @@ async function collectReport({
     },
     native: { found: false },
     limitations: [
-      "No mobile session adapter is installed or qualified.",
+      "No mobile session adapter is device-qualified; this report does not activate one.",
       "Method hashes are not a full app-bundle fingerprint or a compatibility proof.",
       "Token references are source observations, not account values or authorization checks.",
     ],

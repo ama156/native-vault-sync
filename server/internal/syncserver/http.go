@@ -46,7 +46,7 @@ func reply(w http.ResponseWriter, status int, body any) {
 }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
-	allowed := origin == "app://obsidian.md" || origin == "null" || origin == strings.TrimSuffix(s.Store.Config.PublicURL, "/")
+	allowed := origin == "app://obsidian.md" || origin == "capacitor://localhost" || origin == "null" || origin == strings.TrimSuffix(s.Store.Config.PublicURL, "/")
 	if origin != "" && allowed {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Vary", "Origin")

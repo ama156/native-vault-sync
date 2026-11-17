@@ -1,6 +1,6 @@
 # HTTP and WebSocket API reference
 
-Contract for the independent **Vault Sync server 0.1.0**, based on the exercised desktop 1.8.7 and 1.15.1 client flows. It is not a published official Obsidian API or a promise of every official endpoint/feature. See the [technical deep dive](TECHNICAL-DEEP-DIVE.md) for client internals, encryption, routing, persistence and evidence boundaries.
+Contract for the independent **Vault Sync server 0.1.2**, based on the exercised desktop 1.8.7 and 1.15.1 client flows. It is not a published official Obsidian API or a promise of every official endpoint/feature. See the [technical deep dive](TECHNICAL-DEEP-DIVE.md) for client internals, encryption, routing, persistence and evidence boundaries.
 
 The [OpenAPI 3.1 JSON document](HTTP-API.openapi.json) describes the HTTP interface. OpenAPI does not specify the binary WebSocket state machine below.
 
@@ -49,7 +49,7 @@ The newer native helper skips normal JSON error parsing for non-success HTTP sta
 
 ### CORS and preflight
 
-Allowed nonempty origins are `app://obsidian.md`, the literal `null`, and the configured public origin. Requests without an Origin header are also accepted. Other origins receive 403 before normal endpoint processing.
+Allowed nonempty origins are `app://obsidian.md`, `capacitor://localhost` (iOS, since 0.1.2), the literal `null`, and the configured public origin. Requests without an Origin header are also accepted. Other origins receive 403 before normal endpoint processing.
 
 For an approved origin, responses include:
 
@@ -238,7 +238,7 @@ Response: `{"res":"ok"}`. Marks the remote vault deleted and disconnects its cli
 ### `GET /healthz`
 
 ```json
-{"service":"vault-sync-server","bridge_protocol":1,"ready":true,"version":"0.1.0"}
+{"service":"vault-sync-server","bridge_protocol":1,"ready":true,"version":"0.1.2"}
 ```
 
 Unready returns 503 with service/protocol/`ready:false`; `version` is not required in that response. No credentials or vault metadata are exposed. The readiness request checks account database access, not TLS/WebSocket reachability, available disk capacity or the completion of native sync. The bridge connection test requires matching service identity, protocol 1 and `ready:true`.
