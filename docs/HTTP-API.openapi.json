@@ -1,0 +1,2153 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Native Vault Sync HTTP API",
+    "version": "0.1.0",
+    "description": "Independent compatible personal server, not an official public Obsidian API. Documents implementation baseline 5159ae5. Session tokens are JSON-body fields; security: [] does not imply account routes are unauthenticated. HTTP 200 may contain an error member. OPTIONS preflight returns 204 after approved Origin checks; headers permit GET,POST,OPTIONS and Content-Type. Allowed origins: app://obsidian.md, literal null, configured public origin, or no Origin. Unknown authenticated POST routes return 501; unrecognized JSON members are ignored. No signup, REST admin, sharing, migration or billing. WebSocket framing is specified separately.",
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/ama156/native-vault-sync/blob/main/LICENSE"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://sync.example.com",
+      "description": "Replace with the configured public HTTPS origin."
+    }
+  ],
+  "tags": [
+    {
+      "name": "Service"
+    },
+    {
+      "name": "Account"
+    },
+    {
+      "name": "Vaults"
+    },
+    {
+      "name": "Sync",
+      "description": "HTTP upgrade only; binary protocol is in the Markdown reference."
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/user/signin": {
+      "post": {
+        "operationId": "signIn",
+        "tags": [
+          "Account"
+        ],
+        "summary": "Authenticate the initialized owner account",
+        "description": "Authenticate the initialized owner account. Sessions persist across restart and expire after 90 days. Nonempty MFA is unsupported.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInInput"
+              },
+              "example": {
+                "email": "you@example.com",
+                "password": "example-account-password",
+                "mfa": ""
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SignInResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "token": "<TOKEN>",
+                      "email": "you@example.com",
+                      "name": "Owner",
+                      "license": ""
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Invalid email or password"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Global ten-attempts/minute login limit or two concurrent password verifications exceeded.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/info": {
+      "post": {
+        "operationId": "accountInfo",
+        "tags": [
+          "Account"
+        ],
+        "summary": "Read account display metadata; does not rotate or refresh a token",
+        "description": "Read account display metadata; does not rotate or refresh a token.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionInput"
+              },
+              "example": {
+                "token": "<TOKEN>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Account"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "email": "you@example.com",
+                      "name": "Owner",
+                      "license": ""
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/signout": {
+      "post": {
+        "operationId": "signOut",
+        "tags": [
+          "Account"
+        ],
+        "summary": "Revoke this session",
+        "description": "Revoke this session. Invalid/expired tokens already fail the shared authentication check.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionInput"
+              },
+              "example": {
+                "token": "<TOKEN>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Ok"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "res": "ok"
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/subscription/list": {
+      "post": {
+        "operationId": "subscriptionList",
+        "tags": [
+          "Account"
+        ],
+        "summary": "Report availability of Sync on this private server",
+        "description": "Report availability of Sync on this private server. Does not validate or grant an official subscription.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionInput"
+              },
+              "example": {
+                "token": "<TOKEN>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/SubscriptionResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "sync": true
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/list": {
+      "post": {
+        "operationId": "vaultList",
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "List active owned vaults, an empty shared list and configured count limit",
+        "description": "List active owned vaults, an empty shared list and configured count limit.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultListInput"
+              },
+              "example": {
+                "token": "<TOKEN>",
+                "supported_encryption_version": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/VaultListResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "vaults": [],
+                      "shared": [],
+                      "limit": 10
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/regions": {
+      "post": {
+        "operationId": "vaultRegions",
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Return the single self-hosted region",
+        "description": "Return the single self-hosted region.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegionInput"
+              },
+              "example": {
+                "token": "<TOKEN>",
+                "host": "sync.example.com/sync"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/RegionsResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "regions": [
+                        {
+                          "value": "self-hosted",
+                          "name": "Self-hosted"
+                        }
+                      ]
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/create": {
+      "post": {
+        "operationId": "vaultCreate",
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Create vault metadata with client-generated salt, keyhash and exact native encryption version",
+        "description": "Create vault metadata with client-generated salt, keyhash and exact native encryption version. Effective name limit is 200 UTF-8 bytes. This endpoint never receives vault passwords or raw keys.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultCreateInput"
+              },
+              "example": {
+                "token": "<TOKEN>",
+                "name": "Personal vault",
+                "keyhash": "<KEYHASH>",
+                "salt": "<CLIENT_GENERATED_SALT>",
+                "region": "self-hosted",
+                "encryption_version": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Vault"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "id": "0123456789abcdef0123456789abcdef",
+                      "name": "Personal vault",
+                      "host": "sync.example.com/sync",
+                      "salt": "<CLIENT_GENERATED_SALT>",
+                      "encryption_version": 3,
+                      "region": "self-hosted",
+                      "size": 0,
+                      "created": 1794860000000
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/access": {
+      "post": {
+        "operationId": "vaultAccess",
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Check active session and vault, exact keyhash, matching encryption version and exact configured host",
+        "description": "Check active session and vault, exact keyhash, matching encryption version and exact configured host. Separate WebSocket init is still required.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultAccessInput"
+              },
+              "example": {
+                "token": "<TOKEN>",
+                "vault_uid": "<VAULT_ID>",
+                "keyhash": "<KEYHASH>",
+                "host": "sync.example.com/sync",
+                "encryption_version": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Ok"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "res": "ok"
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/rename": {
+      "post": {
+        "operationId": "vaultRename",
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Rename remote-vault display metadata; does not rename files or change encryption identity",
+        "description": "Rename remote-vault display metadata; does not rename files or change encryption identity.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultRenameInput"
+              },
+              "example": {
+                "token": "<TOKEN>",
+                "vault_uid": "<VAULT_ID>",
+                "name": "New name"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Ok"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "res": "ok"
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/delete": {
+      "post": {
+        "operationId": "vaultDelete",
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Soft-delete the remote vault, hide discovery/access and disconnect clients",
+        "description": "Soft-delete the remote vault, hide discovery/access and disconnect clients. Retain ciphertext/history and storage accounting; active vault count slot is freed.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "One JSON object; maximum encoded body size 65,536 bytes. Extra JSON members are ignored.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultDeleteInput"
+              },
+              "example": {
+                "token": "<TOKEN>",
+                "vault_uid": "<VAULT_ID>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success or a native application error. Semantic account failures intentionally use HTTP 200.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Ok"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "res": "ok"
+                    }
+                  },
+                  "applicationError": {
+                    "value": {
+                      "error": "Not logged in"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, oversized, multiple-value or incorrectly typed JSON input.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "health",
+        "tags": [
+          "Service"
+        ],
+        "summary": "Service identity and readiness",
+        "description": "Unauthenticated account-database readiness, not a disk-capacity, TLS, WebSocket or completed-sync test.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ready.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReady"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unready.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthUnready"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sync": {
+      "get": {
+        "operationId": "syncUpgrade",
+        "tags": [
+          "Sync"
+        ],
+        "summary": "Upgrade to the native Sync WebSocket",
+        "description": "Requires standard WebSocket upgrade headers; no application subprotocol or compression. A successful HTTP 101 is followed by a JSON init message containing token, vault ID, keyhash, encryption version and cursor. See docs/API-REFERENCE.md for notifications, binary pieces and sequencing. Do not treat this operation as a JSON REST request.",
+        "security": [],
+        "responses": {
+          "101": {
+            "description": "WebSocket established, awaiting init. Does not by itself grant vault access."
+          },
+          "403": {
+            "description": "Nonempty unapproved Origin.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Total Sync connection limit (64) reached.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                },
+                "description": "JSON responses are not cacheable."
+              },
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Present for an approved nonempty Origin; reflected app://obsidian.md, null, or the configured public origin."
+              },
+              "Vary": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Contains Origin when CORS headers are emitted."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected WebSocket handshake; status/body may be produced by the WebSocket library."
+          }
+        },
+        "x-websocket-protocol": {
+          "reference": "./API-REFERENCE.md#6-websocket-state-machine",
+          "authentication": "First JSON text frame: op=init. No Authorization-header or cookie authentication.",
+          "maxBinaryMessageBytes": 2097152,
+          "maxInboundMetadataBytes": 65536
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Native application error; semantic account failures normally use HTTP 200."
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "Ok": {
+        "type": "object",
+        "properties": {
+          "res": {
+            "type": "string",
+            "const": "ok"
+          }
+        },
+        "required": [
+          "res"
+        ],
+        "additionalProperties": false
+      },
+      "SessionInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "SignInInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Initialized owner email; trimmed and compared case-insensitively."
+          },
+          "password": {
+            "type": "string",
+            "description": "Custom owner account password, not a vault encryption password."
+          },
+          "mfa": {
+            "type": "string",
+            "description": "Omit or use empty string; nonempty MFA is unsupported."
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Owner email."
+          },
+          "name": {
+            "type": "string",
+            "description": "Owner display name."
+          },
+          "license": {
+            "type": "string",
+            "const": "",
+            "description": "Compatibility field, not an official product entitlement."
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "license"
+        ],
+        "additionalProperties": false
+      },
+      "SignInResult": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          },
+          "email": {
+            "type": "string",
+            "description": "Owner email."
+          },
+          "name": {
+            "type": "string",
+            "description": "Owner display name."
+          },
+          "license": {
+            "type": "string",
+            "const": ""
+          }
+        },
+        "required": [
+          "token",
+          "email",
+          "name",
+          "license"
+        ],
+        "additionalProperties": false
+      },
+      "SubscriptionResult": {
+        "type": "object",
+        "properties": {
+          "sync": {
+            "type": "boolean",
+            "const": true,
+            "description": "Availability on this private service; no official billing check."
+          }
+        },
+        "required": [
+          "sync"
+        ],
+        "additionalProperties": false
+      },
+      "Vault": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "description": "Server-issued 16-byte random ID encoded as hex."
+          },
+          "name": {
+            "type": "string",
+            "description": "Plaintext remote-vault display name."
+          },
+          "host": {
+            "type": "string",
+            "description": "Public authority plus /sync, without a scheme. Example: sync.example.com/sync."
+          },
+          "salt": {
+            "type": "string",
+            "description": "Client-generated salt used by the native provider."
+          },
+          "encryption_version": {
+            "type": "integer",
+            "enum": [
+              0,
+              2,
+              3
+            ],
+            "description": "Exact native encryption format; preserve the selected value."
+          },
+          "region": {
+            "type": "string",
+            "const": "self-hosted"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Latest live logical ciphertext size, not retained history quota usage."
+          },
+          "created": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Server creation timestamp, Unix milliseconds."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "host",
+          "salt",
+          "encryption_version",
+          "region",
+          "size",
+          "created"
+        ],
+        "additionalProperties": false
+      },
+      "VaultListInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          },
+          "supported_encryption_version": {
+            "type": "integer",
+            "description": "Native capability hint; accepted but ignored by this server."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "VaultListResult": {
+        "type": "object",
+        "properties": {
+          "vaults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vault"
+            }
+          },
+          "shared": {
+            "type": "array",
+            "maxItems": 0,
+            "items": {}
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Configured active remote-vault count limit."
+          }
+        },
+        "required": [
+          "vaults",
+          "shared",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "RegionInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          },
+          "host": {
+            "type": "string",
+            "description": "Optional native host hint; ignored."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "RegionsResult": {
+        "type": "object",
+        "properties": {
+          "regions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "const": "self-hosted"
+                },
+                "name": {
+                  "type": "string",
+                  "const": "Self-hosted"
+                }
+              },
+              "required": [
+                "value",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "regions"
+        ],
+        "additionalProperties": false
+      },
+      "VaultCreateInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          },
+          "name": {
+            "type": "string",
+            "description": "Nonblank remote-vault display name. Limit is 200 UTF-8 bytes, not Unicode character count.",
+            "x-maxUtf8Bytes": 200
+          },
+          "keyhash": {
+            "type": "string",
+            "description": "Nonempty native version-specific encryption identity verifier, not account authorization. Limit is 1024 UTF-8 bytes, not Unicode character count.",
+            "x-maxUtf8Bytes": 1024
+          },
+          "salt": {
+            "type": "string",
+            "description": "Nonempty client-generated vault salt. Limit is 1024 UTF-8 bytes, not Unicode character count.",
+            "x-maxUtf8Bytes": 1024
+          },
+          "region": {
+            "type": "string",
+            "description": "Optional hint; the server always returns self-hosted."
+          },
+          "encryption_version": {
+            "type": "integer",
+            "enum": [
+              0,
+              2,
+              3
+            ],
+            "description": "Exact native encryption format; preserve the selected value."
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "keyhash",
+          "salt",
+          "encryption_version"
+        ]
+      },
+      "VaultAccessInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          },
+          "vault_uid": {
+            "type": "string",
+            "description": "Active remote-vault ID."
+          },
+          "keyhash": {
+            "type": "string",
+            "description": "Must exactly match the stored verifier."
+          },
+          "host": {
+            "type": "string",
+            "description": "Must exactly equal the configured public authority plus /sync."
+          },
+          "encryption_version": {
+            "type": "integer",
+            "enum": [
+              0,
+              2,
+              3
+            ],
+            "description": "Exact native encryption format; preserve the selected value."
+          }
+        },
+        "required": [
+          "token",
+          "vault_uid",
+          "keyhash",
+          "host",
+          "encryption_version"
+        ]
+      },
+      "VaultRenameInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          },
+          "vault_uid": {
+            "type": "string",
+            "description": "Active remote-vault ID."
+          },
+          "name": {
+            "type": "string",
+            "description": "Nonblank new display name; does not rename files or change encryption identity. Limit is 256 UTF-8 bytes, not Unicode character count.",
+            "x-maxUtf8Bytes": 256
+          }
+        },
+        "required": [
+          "token",
+          "vault_uid",
+          "name"
+        ]
+      },
+      "VaultDeleteInput": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Custom-server bearer token in the JSON body. Issued as vs1_ plus 64 hex characters. Do not use an Authorization header."
+          },
+          "vault_uid": {
+            "type": "string",
+            "description": "Active remote-vault ID."
+          }
+        },
+        "required": [
+          "token",
+          "vault_uid"
+        ]
+      },
+      "HealthReady": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "vault-sync-server"
+          },
+          "bridge_protocol": {
+            "type": "integer",
+            "const": 1
+          },
+          "ready": {
+            "type": "boolean",
+            "const": true
+          },
+          "version": {
+            "type": "string",
+            "const": "0.1.0"
+          }
+        },
+        "required": [
+          "service",
+          "bridge_protocol",
+          "ready",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "HealthUnready": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "vault-sync-server"
+          },
+          "bridge_protocol": {
+            "type": "integer",
+            "const": 1
+          },
+          "ready": {
+            "type": "boolean",
+            "const": false
+          }
+        },
+        "required": [
+          "service",
+          "bridge_protocol",
+          "ready"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Client internals, encryption, routing, durability and compatibility evidence.",
+    "url": "https://github.com/ama156/native-vault-sync/blob/main/docs/TECHNICAL-DEEP-DIVE.md"
+  },
+  "x-body-token-authentication": "Every POST except /user/signin requires token in the JSON body. Native token is also required in WebSocket init.",
+  "x-cors-preflight": {
+    "status": 204,
+    "allowMethods": [
+      "GET",
+      "POST",
+      "OPTIONS"
+    ],
+    "allowHeaders": [
+      "Content-Type"
+    ],
+    "description": "Origin validation occurs before preflight and endpoint processing."
+  },
+  "x-experimental": true
+}

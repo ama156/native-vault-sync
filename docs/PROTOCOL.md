@@ -1,5 +1,7 @@
 # Native protocol contract
 
+For full request/response examples, see the [API reference](API-REFERENCE.md) and [OpenAPI document](HTTP-API.openapi.json). The [technical deep dive](TECHNICAL-DEEP-DIVE.md) explains the client internals and separates observations from independent implementation choices.
+
 The server implements an independently recovered private client contract. JSON field shapes and error handling are compatibility behavior; database layout is an independent design.
 
 ## Account API

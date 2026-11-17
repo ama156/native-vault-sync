@@ -4,6 +4,13 @@ An experimental native-Sync-compatible personal server and desktop connection ad
 
 The server is a single Linux binary behind your existing HTTPS reverse proxy. The desktop plugin contains its own loopback WebSocket relay. This is an independent interoperability project, not an official Obsidian product.
 
+## Technical documentation
+
+- [Technical deep dive](docs/TECHNICAL-DEEP-DIVE.md): reverse-engineered client layers, permissions, account routing, encryption, native scheduling, durable storage, replay and failure boundaries.
+- [API reference](docs/API-REFERENCE.md): every implemented HTTP route, JSON examples, WebSocket state machine, binary framing, history, restore and error semantics.
+- [OpenAPI 3.1 JSON](docs/HTTP-API.openapi.json): importable HTTP contract. WebSocket message sequencing is documented separately in the API reference.
+- [Compatibility and evidence](docs/COMPATIBILITY.md): exact app fingerprints, test reports and remaining qualification limits.
+
 ## Current status
 
 Version 0.1.0 is an experimental release. Supported adapters are explicitly limited to desktop **1.8.7** and **1.15.1**. See `docs/COMPATIBILITY.md` and the JSON test reports for the evidence and remaining qualification limits. Other versions stay inactive.
