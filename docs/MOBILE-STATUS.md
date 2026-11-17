@@ -58,6 +58,12 @@ An unused test installation may have a saved, completely empty signed-out accoun
 
 To disable, use **Sign out / disable**, or disable the plugin. Custom connections close and native Sync is paused. Local notes and the native index/history state remain. Sign-out revokes the custom server session. Plugin unload preserves its device secret for resumption when reenabled. An expired/revoked session requires signing out in bridge settings and signing in again.
 
+## Native account display and unlocked Sync settings
+
+The owner now reports that the native account screen displays the custom-server account and native Sync settings are accessible after the 0.1.3 update. This follows the deliberately installed native account binding: custom account metadata is exposed through per-instance getters and native presence checks see a local session handle. It does not sign in to the official service. This binding already existed in 0.1.2; the exact cause of the earlier locked UI was not instrumented.
+
+Use bridge settings for account setup and full sign-out/disable. Native settings visibility does not make all official account or remote-vault-management buttons compatible. For the complete comparison, token storage, request paths, cleanup and source map, read [iPhone and desktop implementation](PLATFORM-ADAPTERS.md). Desktop routing/relay behavior is unchanged from 0.1.2 to 0.1.3.
+
 ## Attachment controls in 0.1.3
 
 On iPhone, open **Settings → Vault Sync Bridge → Attachments / selective sync** while the bridge is connected. These are device-local native preferences, not a second sync engine. Enable **Sync images**, **Sync PDFs**, and **Sync all other types** for PNG/PDF/ZIP/EPUB. Audio and video have their own toggles. On Mac, enable the corresponding options under native **Settings → Sync → Selective sync**. Configure both ends; the bridge does not silently enable all file types.

@@ -6,6 +6,7 @@ The server is a single Linux binary behind your existing HTTPS reverse proxy. Th
 
 ## Technical documentation
 
+- [iPhone and desktop implementation](docs/PLATFORM-ADAPTERS.md): why native account screens show the custom session, platform-specific login/routing, token storage, WebSockets and lifecycle.
 - [Technical deep dive](docs/TECHNICAL-DEEP-DIVE.md): reverse-engineered client layers, permissions, account routing, encryption, native scheduling, durable storage, replay and failure boundaries.
 - [API reference](docs/API-REFERENCE.md): every implemented HTTP route, JSON examples, WebSocket state machine, binary framing, history, restore and error semantics.
 - [OpenAPI 3.1 JSON](docs/HTTP-API.openapi.json): importable HTTP contract. WebSocket message sequencing is documented separately in the API reference.

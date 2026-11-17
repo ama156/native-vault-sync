@@ -5,7 +5,8 @@
   "buildContext": {
     "pluginRelease": "0.1.2",
     "adapterTarget": "iOS Obsidian 1.15.1",
-    "versionEvidence": "Existing installation/adapter context; no new device diagnostic or bundle fingerprint supplied"
+    "versionEvidence": "Existing installation/adapter context; no new device diagnostic or bundle fingerprint supplied",
+    "followUpRelease": "0.1.3 (owner-reported update; no new diagnostic supplied)"
   },
   "passed": [
     "Phone-to-desktop note synchronization",
@@ -15,9 +16,10 @@
     "Empty note synchronization",
     "Note rename and deletion",
     "History and restore",
-    "PNG/PDF transfer recovered after enabling all other types on Mac and restarting Obsidian on iPhone; size/direction coverage was not restated"
+    "PNG/PDF transfer recovered after enabling all other types on Mac and restarting Obsidian on iPhone; size/direction coverage was not restated",
+    "After the 0.1.3 update, native account screen displays custom-server identity and native Sync settings are accessible"
   ],
-  "scopeNote": "The initial >2 MB attachment pass was withdrawn after the owner reported missing files in both directions. A subsequent update confirms images/PDFs began syncing after enabling all other types on Mac and restarting the iPhone app. It does not explicitly reconfirm ZIP/EPUB, both directions, or every size. Note/offline/restart/checklist results remain user-reported.",
+  "scopeNote": "The initial >2 MB attachment pass was withdrawn after the owner reported missing files in both directions. A subsequent update confirms images/PDFs began syncing after enabling all other types on Mac and restarting the iPhone app. It does not explicitly reconfirm ZIP/EPUB, both directions, or every size. Note/offline/restart/checklist results remain user-reported. A further owner update reports native custom-account display and unlocked Sync settings on 0.1.3; it does not verify every native account action.",
   "notCollected": [
     "Device model and iOS version",
     "Fresh redacted compatibility report",

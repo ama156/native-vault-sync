@@ -34,6 +34,8 @@ After installing the 0.1.2 test build, the owner confirmed phone↔desktop note 
 
 These are user-reported observations. No new device fingerprint, model/OS details, logs or network destination capture were supplied. This does not establish full device qualification or Android/Windows/Linux desktop support. Isolated attachment transport tests are not evidence that the owner's failing configuration works. Historical build-time reports retain their original scope.
 
+The owner additionally reports native custom-account display and unlocked Sync settings after the 0.1.3 update. The account binding itself was already present in 0.1.2. See [platform implementation](PLATFORM-ADAPTERS.md) for the verified code comparison and the limits of native account UI compatibility.
+
 Plugin 0.1.3 adds bridge-owned selective-sync controls and read-only category diagnostics. Its [attachment regression](ios-attachment-regression.json) uses the original native filter and validates requeueing previously excluded revisions. It leaves server 0.1.2 unchanged.
 
 ## Development harness
