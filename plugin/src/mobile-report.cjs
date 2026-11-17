@@ -4,6 +4,7 @@
 // storage, networking, or file APIs are invoked. Function bodies never leave
 // this function; the report contains hashes and structural observations only.
 const { compatibility } = require("./compatibility.cjs");
+const { fileTypeReport } = require("./native-file-types.cjs");
 
 function property(object, name) {
   let target = object;
@@ -98,6 +99,7 @@ async function collectReport({
       instanceAvailable: !!server.value,
       extensible: server.value ? Object.isExtensible(server.value) : null,
     },
+    selectiveSync: fileTypeReport(native),
     engineMethods: {},
     transportMethods: {},
   };

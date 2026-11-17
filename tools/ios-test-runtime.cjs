@@ -146,6 +146,7 @@ function readSource(file) {
     "Hs",
     "_P",
     "Xq",
+    "xD",
   ])
     emit(name);
   const engine = bindings.get("TD").init;
@@ -273,7 +274,7 @@ function createRuntime(file, options = {}) {
       source.account +
       ",be=new $P;var TD=" +
       source.engine +
-      ";return {create:()=>new TD(),derive:C4,provider:iJ,nativeAccountCall:(route)=>sr(route,{token:be.token}),accountSnapshot:()=>JSON.stringify(Object.keys(be).sort()),};})()",
+      ";return {create:()=>new TD(),createFilter:(configDir)=>new xD(configDir),derive:C4,provider:iJ,nativeAccountCall:(route)=>sr(route,{token:be.token}),accountSnapshot:()=>JSON.stringify(Object.keys(be).sort()),};})()",
     context,
     { timeout: 10000 },
   );
@@ -354,13 +355,7 @@ function createRuntime(file, options = {}) {
     native.vault = vault;
     native.plugin = { enabled: true };
     native.db = { put: async () => {} };
-    native.filter = {
-      allowTypes: new Set(["md", "canvas", "png"]),
-      allowSpecialFiles: new Set(),
-      ignoreFolders: [],
-      clear() {},
-      allowSyncFile: (name) => !name.startsWith("."),
-    };
+    native.filter = api.createFilter(vault.configDir);
     native.deviceName = "Disposable iOS source harness";
     native.requestSync = () => {};
     native.initialized = native.dataLoaded = true;

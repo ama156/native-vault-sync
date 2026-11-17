@@ -217,6 +217,7 @@ function sdk(platform) {
     modals: [],
     buttons: [],
     notices: [],
+    toggles: [],
   };
   class Plugin {
     constructor(app) {
@@ -258,7 +259,8 @@ function sdk(platform) {
     }
   }
   class Setting {
-    setName() {
+    setName(name) {
+      this.name = name;
       return this;
     }
     setDesc() {
@@ -278,6 +280,26 @@ function sdk(platform) {
         },
       };
       callback(input);
+      return this;
+    }
+    addToggle(callback) {
+      const toggle = {
+        name: this.name,
+        setValue(value) {
+          this.value = value;
+          return this;
+        },
+        setDisabled(value) {
+          this.disabled = value;
+          return this;
+        },
+        onChange(fn) {
+          this.change = fn;
+          return this;
+        },
+      };
+      state.toggles.push(toggle);
+      callback(toggle);
       return this;
     }
     addDropdown(callback) {
@@ -403,6 +425,41 @@ test("one bundled plugin loads on iOS/Android without process, Buffer, Node, Ele
     assert.deepEqual([...new Set(required)], ["obsidian"]);
     await plugin.onunload?.();
   }
+});
+
+test("iOS bridge exposes native attachment categories without official settings or account calls", async () => {
+  const { state, exports: obsidian } = sdk({ isIosApp: true }),
+    module = { exports: {} };
+  const context = vm.createContext({
+    module,
+    require(name) {
+      assert.equal(name, "obsidian");
+      return obsidian;
+    },
+    document: { hidden: false },
+    window: { setInterval: () => 1, clearInterval() {} },
+  });
+  vm.runInContext(bundled, context);
+  const plugin = new module.exports({ workspace: { onLayoutReady: () => {} } });
+  await plugin.onload();
+  plugin.controller.session = { authenticated: true };
+  plugin.controller.native = {
+    vaultId: "owned",
+    filter: { allowTypes: new Set(["image", "pdf"]), ignoreFolders: [] },
+  };
+  const changed = [];
+  plugin.controller.setFileType = async (type, value) =>
+    changed.push([type, value]);
+  state.tabs[0].display();
+  assert.equal(state.toggles.length, 5);
+  const other = state.toggles.find((t) => t.name === "Sync all other types");
+  assert.equal(other.value, false);
+  await other.change(true);
+  assert.deepEqual(changed, [["unsupported", true]]);
+  assert.equal(state.toggles.find((t) => t.name === "Sync images").value, true);
+  plugin.controller.native = null;
+  plugin.controller.session = null;
+  await plugin.onunload();
 });
 
 test("mobile clipboard failure keeps the local report selectable without logging an error body", async () => {

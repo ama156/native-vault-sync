@@ -1,6 +1,6 @@
 {
   "reportedAt": "2026-11-17",
-  "status": "Note sync and recovery user-confirmed; attachment synchronization reported failing in both directions and under investigation",
+  "status": "Note sync/recovery and recovered PNG/PDF transfer user-confirmed; ZIP/EPUB and iOS attachment-setting update still need confirmation",
   "evidenceType": "User-reported manual device tests; not independently observed or instrumented by the development harness",
   "buildContext": {
     "pluginRelease": "0.1.2",
@@ -14,9 +14,10 @@
     "Synchronization resumes after closing and reopening Obsidian",
     "Empty note synchronization",
     "Note rename and deletion",
-    "History and restore"
+    "History and restore",
+    "PNG/PDF transfer recovered after enabling all other types on Mac and restarting Obsidian on iPhone; size/direction coverage was not restated"
   ],
-  "scopeNote": "The owner corrected the earlier attachment-success report: attachment bytes do not arrive in either direction, despite the note/link synchronizing. The earlier >2 MB on-device success claim is withdrawn. Other previously reported note/offline/restart/checklist results remain user-reported; no device logs have been captured.",
+  "scopeNote": "The initial >2 MB attachment pass was withdrawn after the owner reported missing files in both directions. A subsequent update confirms images/PDFs began syncing after enabling all other types on Mac and restarting the iPhone app. It does not explicitly reconfirm ZIP/EPUB, both directions, or every size. Note/offline/restart/checklist results remain user-reported.",
   "notCollected": [
     "Device model and iOS version",
     "Fresh redacted compatibility report",
@@ -36,7 +37,7 @@
   "reportedIssues": [
     {
       "area": "attachments",
-      "status": "unresolved",
+      "status": "PNG/PDF recovery reported; ZIP/EPUB not yet reconfirmed",
       "types": [
         "zip",
         "epub",
@@ -49,13 +50,18 @@
       ],
       "sizes": "Both below and above 2 MB, according to owner",
       "symptom": "The containing note/link appears on the other device, but the linked attachment is missing and cannot be found.",
-      "configuration": "Selective-sync categories and excluded folders not yet confirmed."
+      "configuration": "Owner found Sync all other types disabled on Mac; native Sync settings on iPhone request an account sign-in.",
+      "recovery": "Owner enabled all other types on Mac and restarted Obsidian on iPhone, then reported images/PDFs started syncing. These actions were combined, so their separate causal effects are unknown."
     }
   ],
   "correctionHistory": [
     {
       "reportedAt": "2026-11-17",
       "change": "Withdraw prior on-device large-attachment pass after owner reported failures for ZIP, EPUB, PDF and PNG, at both small and large sizes."
+    },
+    {
+      "reportedAt": "2026-11-17",
+      "change": "Owner reports image/PDF recovery after Mac all-other-types enablement plus iPhone app restart. Do not attribute PNG/PDF recovery solely to the other-types toggle."
     }
   ]
 }

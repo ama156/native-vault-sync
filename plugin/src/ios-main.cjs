@@ -1,6 +1,7 @@
 "use strict";
 const { PluginSettingTab, Setting, Notice, requestUrl } = require("obsidian");
 const Diagnostics = require("./mobile-diagnostics.cjs");
+const { FILE_TYPES } = require("./native-file-types.cjs");
 const {
   IOSController,
   prepareEmptyNativeAccount,
@@ -74,7 +75,7 @@ class IOSSettings extends PluginSettingTab {
       c = p.controller;
     this.containerEl.empty();
     this.containerEl.createEl("p", {
-      text: "Experimental iOS 1.15.1 native Sync adapter. Isolated source tests passed; a real iPhone run is still required. Use a clean account environment and an unconnected disposable local vault. Existing accounts and connections are refused.",
+      text: "Experimental iOS 1.15.1 native Sync adapter. Note sync/restart is user-confirmed; attachment behavior remains under device qualification. Use a clean account environment and an unconnected disposable local vault. Existing accounts and connections are refused.",
     });
     this.containerEl.createEl("p", { text: c.state });
     new Setting(this.containerEl)
@@ -202,6 +203,57 @@ class IOSSettings extends PluginSettingTab {
             }),
           ),
         );
+    }
+    if (c.session?.authenticated && c.native?.vaultId) {
+      const preferences = c.fileTypes();
+      this.containerEl.createEl("h3", { text: "Attachments / selective sync" });
+      this.containerEl.createEl("p", {
+        text: "These native file-type settings apply to this device only. Enable the matching types on every device. ZIP/EPUB require all other types. No official account login is needed here.",
+      });
+      if (preferences.available) {
+        for (const type of FILE_TYPES) {
+          new Setting(this.containerEl)
+            .setName(type.name)
+            .setDesc(type.description)
+            .addToggle((toggle) =>
+              toggle
+                .setValue(preferences.types[type.id])
+                .setDisabled(p.busy)
+                .onChange((value) =>
+                  p.run(() => c.setFileType(type.id, value)),
+                ),
+            );
+        }
+        this.containerEl.createEl("p", {
+          text: `Excluded folders: ${preferences.excludedFolderCount ?? "unknown"}. File-type toggles preserve existing folder exclusions.`,
+        });
+        if (typeof c.native.showSyncLog === "function") {
+          new Setting(this.containerEl)
+            .setName("Sync activity log")
+            .setDesc(
+              "View native upload/download errors without opening account settings.",
+            )
+            .addButton((button) =>
+              button.setButtonText("View sync log").onClick(() =>
+                p.run(async () => {
+                  c.native?.showSyncLog();
+                }),
+              ),
+            );
+        }
+        new Setting(this.containerEl)
+          .setName("Refresh attachment settings")
+          .setDesc(
+            "Reload these values after changing native settings elsewhere.",
+          )
+          .addButton((button) =>
+            button.setButtonText("Refresh").onClick(() => this.display()),
+          );
+      } else {
+        this.containerEl.createEl("p", {
+          text: "Native file-type settings are unavailable. Collect the read-only compatibility report.",
+        });
+      }
     }
     new Setting(this.containerEl)
       .setName("Saved signed-out test profile")

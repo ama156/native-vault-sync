@@ -8,6 +8,7 @@ const {
 } = require("./ios-account.cjs");
 const { MobileSession } = require("./mobile-session.cjs");
 const { installDirectConnection } = require("./ios-connection.cjs");
+const { FILE_TYPES, fileTypeReport } = require("./native-file-types.cjs");
 
 class IOSController {
   constructor(app, settings, request, save, changed = () => {}) {
@@ -159,6 +160,46 @@ class IOSController {
       }
       throw error;
     }
+  }
+  fileTypes() {
+    return fileTypeReport(this.native);
+  }
+  async setFileType(type, enabled, expected = IOS_1151.setSyncType) {
+    if (
+      !FILE_TYPES.some((entry) => entry.id === type) ||
+      typeof enabled !== "boolean"
+    )
+      throw Error("Unsupported native file category.");
+    const native = this.native,
+      session = this.session,
+      generation = this.generation;
+    const method = native?.setSyncType;
+    if (
+      !session?.authenticated ||
+      !native?.vaultId ||
+      native.vaultId !== this.settings.vaultId
+    )
+      throw Error("Connect this vault through bridge settings first.");
+    if (
+      native.host !== new URL(session.server).host + "/sync" ||
+      !this.fileTypes().available
+    )
+      throw Error("This native vault does not match the custom connection.");
+    if ((await fingerprint(method)) !== expected)
+      throw Error(
+        "Unqualified native selective-sync method. Settings were not changed.",
+      );
+    if (
+      this.generation !== generation ||
+      this.native !== native ||
+      this.session !== session ||
+      !session.authenticated
+    )
+      throw Error("Bridge operation cancelled.");
+    // Native changeFilter requeues previously excluded remote revisions and
+    // requests synchronization of local files. Never reset the vault/cursor.
+    Reflect.apply(method, native, [type, enabled]);
+    await native.saveData();
   }
   async vaults() {
     if (!this.session) throw Error("Sign in first.");

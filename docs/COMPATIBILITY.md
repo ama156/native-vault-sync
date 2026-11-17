@@ -30,9 +30,11 @@ The GitHub workflow runs Go's race detector and static analysis on Linux amd64, 
 
 ## User-confirmed iPhone tests — 17 November 2026
 
-After installing the 0.1.2 test build, the owner confirmed phone↔desktop note sync, offline convergence and resumption after closing/reopening Obsidian. **Correction:** The owner subsequently reported that ZIP, EPUB, PDF and PNG attachments fail to arrive in either direction, at both small and large sizes. The note/link appears but its target file is missing. The earlier on-device attachment-pass claim is withdrawn; this issue remains unresolved. See the [corrected device test record](ios-device-tests.json) and [current mobile status](MOBILE-STATUS.md).
+After installing the 0.1.2 test build, the owner confirmed phone↔desktop note sync, offline convergence and resumption after closing/reopening Obsidian. **Correction:** The owner subsequently reported that ZIP, EPUB, PDF and PNG attachments fail to arrive in either direction, at both small and large sizes. The note/link appears but its target file is missing. The earlier blanket attachment-pass claim is withdrawn. A later owner update reports PNG/PDF recovery after enabling Mac all-other-types and restarting the iPhone app together. ZIP/EPUB and exact recovered size/direction coverage are not yet reconfirmed. See the [corrected device test record](ios-device-tests.json) and [current mobile status](MOBILE-STATUS.md).
 
 These are user-reported observations. No new device fingerprint, model/OS details, logs or network destination capture were supplied. This does not establish full device qualification or Android/Windows/Linux desktop support. Isolated attachment transport tests are not evidence that the owner's failing configuration works. Historical build-time reports retain their original scope.
+
+Plugin 0.1.3 adds bridge-owned selective-sync controls and read-only category diagnostics. Its [attachment regression](ios-attachment-regression.json) uses the original native filter and validates requeueing previously excluded revisions. It leaves server 0.1.2 unchanged.
 
 ## Development harness
 
@@ -54,7 +56,7 @@ The test owner email is `bridge@local.invalid`; initialize an isolated server ac
 
 ## Remaining limits
 
-- iOS 1.15.1 has an experimental adapter with user-confirmed note sync/recovery, but attachments are reported failing and remain unresolved. Android remains diagnostic only.
+- iOS 1.15.1 has an experimental adapter with user-confirmed note sync/recovery and recovered PNG/PDF transfer; ZIP/EPUB and the 0.1.3 settings UI await device confirmation. Android remains diagnostic only.
 - No official/custom account coexistence within one profile.
 - Developer Tools or another debugger can detach interception; the plugin reports failure and requires reactivation. Routing cannot exist before the plugin loads or while it is disabled.
 - No automatic history pruning, permanent purge, sharing, migration, or server-managed encryption.

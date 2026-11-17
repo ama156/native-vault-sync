@@ -1,5 +1,5 @@
 "use strict";
-// Original iOS engine/crypto/transport + independent adapter, using a synthetic
+// Original iOS engine/filter/crypto/transport + independent adapter, using a synthetic
 // vault/secret store and a disposable Go subprocess. No actual app is launched.
 const fs = require("node:fs"),
   os = require("node:os"),
@@ -224,6 +224,80 @@ async function run() {
     checks.push(
       "Native encryption/decryption and engine transfer preserve empty files and attachments over 2 MiB",
     );
+    // Exercise the original category filter, rather than treating extensions
+    // as an allowlist. These are opaque synthetic bytes, not rendered media.
+    assert.deepEqual(Array.from(a.native.filter.allowTypes), [
+      "image",
+      "audio",
+      "pdf",
+      "video",
+    ]);
+    async function transfer(from, to, name, bytes) {
+      await from.write(name, Uint8Array.from(bytes).buffer);
+      await drive(from);
+      await new Promise((r) => setTimeout(r, 50));
+      await drive(to);
+      assert.deepEqual(
+        Buffer.from(await to.vault.adapter.readBinary(name)),
+        bytes,
+      );
+    }
+    await transfer(a, b, "Small-from-a.png", crypto.randomBytes(751));
+    await transfer(b, a, "Small-from-b.pdf", crypto.randomBytes(1201));
+    await transfer(b, a, "Large-from-b.png", crypto.randomBytes(2097152 + 79));
+    await a.write(
+      "Default-filter.zip",
+      Uint8Array.from(crypto.randomBytes(99)).buffer,
+    );
+    await b.write(
+      "Default-filter.epub",
+      Uint8Array.from(crypto.randomBytes(101)).buffer,
+    );
+    await drive(a);
+    await drive(b);
+    assert.equal(b.files.has("Default-filter.zip"), false);
+    assert.equal(a.files.has("Default-filter.epub"), false);
+    await a.controller.setFileType("unsupported", true);
+    await b.controller.setFileType("unsupported", true);
+    await drive(a);
+    await drive(b);
+    await drive(a);
+    assert.deepEqual(
+      Buffer.from(await b.vault.adapter.readBinary("Default-filter.zip")),
+      Buffer.from(await a.vault.adapter.readBinary("Default-filter.zip")),
+    );
+    assert.deepEqual(
+      Buffer.from(await a.vault.adapter.readBinary("Default-filter.epub")),
+      Buffer.from(await b.vault.adapter.readBinary("Default-filter.epub")),
+    );
+    checks.push(
+      "Original native category filter transfers PNG/PDF and a >2 MiB reverse-direction PNG; ZIP/EPUB remain excluded by default and transfer after enabling all other types",
+    );
+    await b.controller.setFileType("image", false);
+    await a.write(
+      "Excluded-until-enabled.png",
+      Uint8Array.from(crypto.randomBytes(721)).buffer,
+    );
+    await drive(a);
+    await new Promise((r) => setTimeout(r, 50));
+    await drive(b);
+    assert.equal(b.files.has("Excluded-until-enabled.png"), false);
+    const cursorBeforeEnable = b.native.version;
+    await b.controller.setFileType("image", true);
+    await drive(b);
+    assert.deepEqual(
+      Buffer.from(
+        await b.vault.adapter.readBinary("Excluded-until-enabled.png"),
+      ),
+      Buffer.from(
+        await a.vault.adapter.readBinary("Excluded-until-enabled.png"),
+      ),
+    );
+    assert.ok(b.native.version >= cursorBeforeEnable);
+    checks.push(
+      "Bridge selective-sync setter requeues a previously ignored remote PNG and downloads it without resetting the revision cursor",
+    );
+
     await a.session.refresh();
     const restarted = await makeClient(storageA, true);
     await setup(restarted);
@@ -271,7 +345,7 @@ async function run() {
         "passed for isolated source integration; real iPhone qualification pending",
       at: new Date().toISOString(),
       sourceSha256: a.r.sourceHash,
-      mode: "Original iOS engine/crypto/transport in isolated VM, synthetic vault/secret adapters, real Go listener",
+      mode: "Original iOS engine/filter/crypto/transport in isolated VM, synthetic vault/secret adapters, real Go listener",
       checks,
       limits: [
         "No actual iPhone app run or filesystem lifecycle test.",

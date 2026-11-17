@@ -1,10 +1,12 @@
-# One plugin: desktop adapter and experimental iOS adapter — 0.1.2
+# One plugin: desktop adapter and experimental iOS adapter — plugin 0.1.3
 
-**iPhone note sync, offline convergence and close/reopen resumption are user-confirmed. Attachment syncing is reported failing in both directions and is under investigation (17 November 2026).** Version 0.1.2 contains an opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
+**iPhone note sync/recovery is user-confirmed. PNG/PDF transfer recovered after the owner changed Mac settings and restarted the iPhone app. ZIP/EPUB and the new settings UI still need device confirmation.** Plugin 0.1.3 adds attachment/selective-sync controls and a native activity-log button inside bridge settings, avoiding the native account-settings sign-in gate. Version 0.1.2 introduced the opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
 
-Use the [0.1.2 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.1.2). Upgrade the server to 0.1.2 first. No community-directory submission is being made.
+Use the [plugin 0.1.3 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.1.3). Server 0.1.2 remains compatible and unchanged; no server upgrade is required from 0.1.2. For older servers, use the [0.1.2 server binaries](https://github.com/ama156/native-vault-sync/releases/tag/0.1.2). No community-directory submission is being made.
 
 ## Before installing
+
+**Updating an existing 0.1.2 bridge connection:** update only the plugin assets to 0.1.3 and reopen the app. Keep your plugin data, account session and native remote-vault state. Do not sign out, reset the connection or prepare the empty account record to apply this update. The fresh-account requirements below apply to initial setup.
 
 This adapter requires **iOS Obsidian 1.15.1 with the inspected method fingerprints**, an unused native account instance, and a disposable local vault with no other remote Sync connection. It refuses existing accounts and saved signed-out accounts. A second vault does not isolate Obsidian's global account state.
 
@@ -36,8 +38,8 @@ There is one plugin ID, `vault-sync-bridge`, and one `main.js` / `manifest.json`
 For convenient test installation, use [BRAT](https://github.com/TfTHacker/obsidian42-brat), which installs GitHub test releases without submitting this plugin to the community directory:
 
 1. In the **clean test environment**, install and enable BRAT from Community plugins.
-2. Use BRAT's **Add a beta plugin for testing** command/settings. Enter `ama156/native-vault-sync` and select/freeze version **0.1.2**. The [BRAT developer guide](https://github.com/TfTHacker/obsidian42-brat/blob/main/BRAT-DEVELOPER-GUIDE.md) documents specific-release and prerelease installation.
-3. Enable **Vault Sync Bridge** in Community plugins. Confirm its displayed version is **0.1.2**.
+2. Use BRAT's **Add a beta plugin for testing** command/settings. Enter `ama156/native-vault-sync` and select/freeze version **0.1.3**. The [BRAT developer guide](https://github.com/TfTHacker/obsidian42-brat/blob/main/BRAT-DEVELOPER-GUIDE.md) documents specific-release and prerelease installation.
+3. Enable **Vault Sync Bridge** in Community plugins. Confirm its displayed version is **0.1.3**.
 
 Alternatively, disable the bridge and copy `main.js` and `manifest.json` from that release into the disposable vault's configured plugin directory, normally `.obsidian/plugins/vault-sync-bridge/`, then enable it. iOS Files may hide dot directories; use a trusted vault file-access method. Copy only the plugin assets, never an existing app/account database. Neither route requires changing `/Applications/Obsidian.app`.
 
@@ -56,6 +58,16 @@ An unused test installation may have a saved, completely empty signed-out accoun
 
 To disable, use **Sign out / disable**, or disable the plugin. Custom connections close and native Sync is paused. Local notes and the native index/history state remain. Sign-out revokes the custom server session. Plugin unload preserves its device secret for resumption when reenabled. An expired/revoked session requires signing out in bridge settings and signing in again.
 
+## Attachment controls in 0.1.3
+
+On iPhone, open **Settings → Vault Sync Bridge → Attachments / selective sync** while the bridge is connected. These are device-local native preferences, not a second sync engine. Enable **Sync images**, **Sync PDFs**, and **Sync all other types** for PNG/PDF/ZIP/EPUB. Audio and video have their own toggles. On Mac, enable the corresponding options under native **Settings → Sync → Selective sync**. Configure both ends; the bridge does not silently enable all file types.
+
+The native setter requeues previously ignored remote revisions, requests local synchronization and persists preferences without resetting the remote vault, encryption identity or revision cursor. Existing folder exclusions remain in place; the bridge shows their count. Selective-sync changes do not remove folder exclusions. Use **View sync log** in bridge settings to inspect transfer errors, and **Inspect compatibility** for redacted category flags and excluded-folder count. Reports contain no attachment paths/names or file contents.
+
+PNG/JPG/PDF are native media categories; ZIP/EPUB/HEIC require all other types. If native Sync settings on iPhone request an official sign-in, use these bridge controls instead. Do not add an official account to configure this custom connection. The owner recovered PNG/PDF after enabling Mac all-other-types and restarting the iPhone app; do not treat this combined observation as proof that PNG/PDF belong to the other-types category.
+
+The [0.1.3 attachment regression](ios-attachment-regression.json) replaces the old simplified test filter with the **actual native filter**. It verifies small PNG/PDF, a >2 MiB reverse-direction PNG, default ZIP/EPUB exclusion, transfer after the bridge enables all other types, and recovery of a previously ignored PNG without resetting the cursor. This is an isolated source/real-server test, not on-device qualification of the new UI. The plugin suite now has 27 checks. Server code, protocol, encryption and database format are unchanged.
+
 ## How the adapter works
 
 The original iOS bundle captures its account object and `fetch` inside a private closure. Changing global `fetch` or writing localStorage after startup cannot update that object. Our source inspection is recorded in [the earlier investigation](IOS-SOURCE-INVESTIGATION.md).
@@ -72,20 +84,20 @@ This is a narrow adapter, not a whole-app network firewall. Use its setup screen
 
 ## Compatibility and evidence
 
-| Platform/build | 0.1.2 behavior | Evidence / limit |
+| Platform/build | Plugin 0.1.3 behavior | Evidence / limit |
 | --- | --- | --- |
 | macOS desktop 1.8.7 / 1.15.1 | Existing routing/embedded relay adapter | Copied-app sandbox qualification and regression tests; no installed app used |
 | Windows / Linux desktop 1.8.7 / 1.15.1 | Same desktop adapter selected | Unit/branch tests; full platform qualification pending |
-| iOS 1.15.1, exact inspected methods | Opt-in experimental custom Sync adapter | Isolated original-engine proof plus user-confirmed note sync, offline convergence and app close/reopen; attachments reported failing in both directions; broader qualification pending |
+| iOS 1.15.1, exact inspected methods | Opt-in experimental custom Sync adapter | Isolated original-engine proof plus user-confirmed note sync/recovery and recovered PNG/PDF transfer; new file-type controls and ZIP/EPUB need device confirmation |
 | Other iOS versions | Inactive read-only diagnostic | No adapter advertised |
 | Android | Inactive read-only diagnostic | No Android source/origin/device qualification yet |
 | Unknown platform | Inactive diagnostic | Guarded loader |
 
 The [isolated proof report](ios-sync-proof.json) covers ten checks: wrong vault password, custom account gating, direct transport login/ready, native encrypted Markdown transfer both ways, empty files and >2 MiB attachments, new-runtime secret restoration/replay, replacement transport reconnect, revocation, and custom-only exercised destinations/native-account-storage isolation. It uses the original supplied file engine with synthetic vault/secret adapters and Node-backed development scrypt/WebSocket facilities. It is **not a run of the complete iPhone app** or proof of WebView crypto/networking, device keychain persistence, native filesystem/database restoration, UI lifecycle or background execution.
 
-Build/unit checks cover 23 cases across account capture/refusal, serialization guard, origin-bound sessions, cancellation, cleanup, secure-storage failure, browser-only loading, redacted diagnostics and the existing desktop relay/routing. Server tests exercise exact iOS Origin matching and retain authorization checks. See [validation record](ios-adapter-tests.json).
+The 0.1.2 build/unit checks cover 23 cases across account capture/refusal, serialization guard, origin-bound sessions, cancellation, cleanup, secure-storage failure, browser-only loading, redacted diagnostics and the existing desktop relay/routing. Server tests exercise exact iOS Origin matching and retain authorization checks. See [validation record](ios-adapter-tests.json).
 
-**Corrected device results — 17 November 2026:** The owner reports successful phone↔desktop note sync, offline-edit convergence and resumption after closing/reopening Obsidian. They subsequently withdrew the attachment-success report: ZIP, EPUB, PDF and PNG attachments, both below and above 2 MB, fail to appear on the other device in either direction. The note/link arrives, but the attachment cannot be found. Attachment qualification is therefore **failed/unresolved**, not passed. Selective-sync settings, excluded folders and transfer behavior are being investigated. Other checklist results remain user-reported. See the [corrected device test record](ios-device-tests.json). No new device diagnostics or logs have been supplied.
+**Corrected device results — 17 November 2026:** The owner reports successful phone↔desktop note sync, offline convergence and close/reopen resumption. They then reported ZIP/EPUB/PDF/PNG attachment failures at both small and large sizes. Mac “all other types” was disabled, and the iPhone native Sync settings requested sign-in. After enabling all other types on Mac and restarting Obsidian on iPhone, images/PDFs started syncing. Because both actions happened together, this does not establish which action restored PNG/PDF; those formats normally belong to their separate image/PDF categories. ZIP/EPUB and the exact recovered size/direction coverage were not reconfirmed. See the [device record and correction history](ios-device-tests.json). No new device diagnostics/logs were supplied.
 
 Still unverified on device: simultaneous conflicting edits, Canvas/folders/settings, plugin disable/reload cleanup, broader suspension/background/resume behavior, expiry/revocation/reauthentication, outage/interrupted-transfer recovery and startup/reconnect destination capture. Device model and iOS version were not provided. Android, Windows and Linux desktop retain their separate qualification limits. The build-time [validation record](ios-adapter-tests.json) and [source proof](ios-sync-proof.json) are historical records; their pending-device statements describe the state before this owner report.
 

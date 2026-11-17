@@ -5,6 +5,8 @@ const IOS_1151 = Object.freeze({
     "7232a5cf37b4297b29a084bc093a74aa5689805913c556833a719c78a0b245ae",
   accountClass:
     "c60a2c848b6a3fa9680b2261ab93ce8974274612b9aab7b0c3db9b0cafba0e47",
+  setSyncType:
+    "c6adce9f9645e0bfff5f99c53a70d5385e98b21e9cb8796830427651e607569d",
   setup: "ae564be66f7f14f6ee6fe4ffa22ce3004a4dcde0a34a89132517b7918cf42265",
   transportClass:
     "fd5244553a30877798e96b8090eaaae0d80e978df2d2d236a8fd498833eb1fc9",
