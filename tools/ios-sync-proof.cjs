@@ -98,7 +98,11 @@ async function run() {
         isEncryptionAvailable: () => true,
       };
     }
-    async function makeClient(store, saved = false) {
+    async function makeClient(
+      store,
+      saved = false,
+      email = "ios-proof@local.invalid",
+    ) {
       const r = runtime(),
         engine = r.createEngine();
       const settings = { server, enabled: false, vaultId: "" };
@@ -120,10 +124,7 @@ async function run() {
         },
         async () => {},
       );
-      assert.equal(
-        await controller.establish("ios-proof@local.invalid", password, saved),
-        true,
-      );
+      assert.equal(await controller.establish(email, password, saved), true);
       const session = controller.session;
       await assert.rejects(
         r.nativeAccountCall("/vault/list"),
@@ -168,7 +169,44 @@ async function run() {
     checks.push(
       "Original iOS account gate passes only after verified custom login; native HTTP serialization is blocked",
     );
-    const b = await makeClient(secrets());
+    let secondEmail = "ios-proof@local.invalid";
+    if (process.env.SYNC_IOS_MULTIUSER === "1") {
+      secondEmail = "ios-coowner@local.invalid";
+      for (const args of [
+        [
+          "users",
+          "add",
+          "--config",
+          config,
+          "--email",
+          secondEmail,
+          "--name",
+          "Synthetic co-owner",
+          "--password-stdin",
+        ],
+        [
+          "vaults",
+          "grant",
+          "--config",
+          config,
+          "--user",
+          secondEmail,
+          "--vault",
+          vault.id,
+        ],
+      ]) {
+        const result = cp.spawnSync(binary, args, {
+          input: password + "\n",
+          encoding: "utf8",
+        });
+        if (result.status !== 0)
+          throw Error("Disposable co-owner administration failed");
+      }
+      checks.push(
+        "Two distinct custom accounts receive administrator-granted co-ownership of the same encrypted vault",
+      );
+    }
+    const b = await makeClient(secrets(), false, secondEmail);
     await setup(b);
     checks.push(
       "Two original iOS native transports authenticate and reach ready through direct custom WebSockets with iOS Origin",

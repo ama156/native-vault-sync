@@ -5,4 +5,11 @@ plugin/dist/
 .DS_Store
 releases/
 work/
+.env
+.env.*
+!.env.example
+*.tar.gz
 .DS_Store
+
+.secrets/
+state/

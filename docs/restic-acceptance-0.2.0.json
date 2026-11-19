@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "serverVersion": "0.2.0",
+  "resticVersion": "0.19.1",
+  "checks": [
+    "Live Unix administration creates a user and co-owner without public administration endpoints",
+    "Consistent directory snapshot includes users, membership and multipart ciphertext",
+    "Official restic creates repeated snapshots, verifies repository data, and restores the unpacked snapshot",
+    "Fresh server restoration preserves co-owner sessions, vault identity and exact >2 MiB ciphertext"
+  ],
+  "limits": [
+    "Disposable loopback server and encrypted synthetic bytes; no installed app or real data used."
+  ]
+}

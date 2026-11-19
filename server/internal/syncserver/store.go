@@ -22,11 +22,14 @@ import (
 )
 
 type Store struct {
-	DB       *sql.DB
-	Config   Config
-	lock     *os.File
-	mu       sync.Mutex
-	reserved int64
+	DB           *sql.DB
+	Config       Config
+	lock         *os.File
+	mu           sync.Mutex
+	reserved     int64
+	reservations map[string]int64
+	userUploads  map[int]int
+	uploads      int
 }
 type Vault struct {
 	ID         string `json:"id"`
@@ -74,18 +77,25 @@ func tokenHash(token string) string {
 func Supported(v int) bool { return v == 0 || v == 2 || v == 3 }
 func Pieces(n int64) int64 { return (n + Chunk - 1) / Chunk }
 func PasswordHash(password string) (string, error) {
-	if len(password) < 12 || len(password) > 1024 {
-		return "", errors.New("account password must contain 12–1024 bytes")
+	if e := passwordPolicy(password); e != nil {
+		return "", e
 	}
 	salt := make([]byte, 16)
 	if _, e := rand.Read(salt); e != nil {
 		return "", e
 	}
 	h := argon2.IDKey([]byte(password), salt, 3, 64*1024, 2, 32)
-	return base64.RawStdEncoding.EncodeToString(salt) + ":" + base64.RawStdEncoding.EncodeToString(h), nil
+	return encodeHash(salt, h), nil
 }
 func verifyPassword(encoded, password string) bool {
 	parts := strings.Split(encoded, ":")
+	if strings.HasPrefix(encoded, "$argon2id$") {
+		p := strings.Split(encoded, "$")
+		if len(p) != 6 || p[2] != "v=19" || p[3] != "m=65536,t=3,p=2" {
+			return false
+		}
+		parts = p[4:]
+	}
 	if len(parts) != 2 || len(password) > 1024 {
 		return false
 	}
@@ -107,7 +117,20 @@ func Open(c Config, exclusive bool) (*Store, error) {
 	if e := os.MkdirAll(c.DataDir, 0700); e != nil {
 		return nil, e
 	}
-	s := &Store{Config: c}
+	info, err := os.Stat(c.DataDir)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() || info.Mode().Perm()&0077 != 0 {
+		return nil, errors.New("data directory must be private (mode 0700)")
+	}
+	if st, ok := info.Sys().(*syscall.Stat_t); ok && os.Geteuid() != 0 && st.Uid != uint32(os.Geteuid()) {
+		return nil, errors.New("data directory must belong to the service user")
+	}
+	if err := regularFile(filepath.Join(c.DataDir, "metadata.sqlite")); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	s := &Store{Config: c, reservations: map[string]int64{}, userUploads: map[int]int{}}
 	if exclusive {
 		f, e := os.OpenFile(filepath.Join(c.DataDir, "server.lock"), os.O_CREATE|os.O_RDWR, 0600)
 		if e != nil {
@@ -132,12 +155,16 @@ func Open(c Config, exclusive bool) (*Store, error) {
 			return nil, e
 		}
 	}
+	if e = os.Chmod(filepath.Join(c.DataDir, "metadata.sqlite"), 0600); e != nil {
+		s.Close()
+		return nil, e
+	}
 	var schema int
 	if e = db.QueryRow("PRAGMA user_version").Scan(&schema); e != nil {
 		s.Close()
 		return nil, e
 	}
-	if schema > 1 {
+	if schema > 2 {
 		s.Close()
 		return nil, errors.New("database was created by a newer server")
 	}
@@ -155,6 +182,11 @@ func Open(c Config, exclusive bool) (*Store, error) {
 			return nil, e
 		}
 	}
+	if e = s.migrateUsers(exclusive); e != nil {
+		s.Close()
+		return nil, e
+	}
+
 	if exclusive {
 		for _, dir := range []string{"uploads", "blobs"} {
 			if e = os.MkdirAll(filepath.Join(c.DataDir, dir), 0700); e != nil {
@@ -194,72 +226,65 @@ func (s *Store) Close() error {
 	return e
 }
 func (s *Store) InitOwner(email, name, password string) error {
-	hash, e := PasswordHash(password)
-	if e != nil {
+	var count int
+	if e := s.DB.QueryRow("SELECT COUNT(*) FROM users").Scan(&count); e != nil {
 		return e
 	}
-	if !strings.Contains(email, "@") || len(email) > 320 {
-		return errors.New("invalid owner email")
+	if count != 0 {
+		return errors.New("server accounts already initialized")
 	}
-	_, e = s.DB.Exec("INSERT INTO owner(id,email,name,password) VALUES(1,?,?,?)", strings.ToLower(strings.TrimSpace(email)), name, hash)
+	_, e := s.AddUser(email, name, password)
 	return e
 }
-func (s *Store) Account() (map[string]any, error) {
-	var email, name string
-	e := s.DB.QueryRow("SELECT email,name FROM owner WHERE id=1").Scan(&email, &name)
-	return map[string]any{"email": email, "name": name, "license": ""}, e
-}
+func (s *Store) Account() (map[string]any, error) { return s.AccountFor(1) }
 func (s *Store) SignIn(email, password string) (string, error) {
-	var actual, hash string
-	e := s.DB.QueryRow("SELECT email,password FROM owner WHERE id=1").Scan(&actual, &hash)
-	if e != nil {
-		return "", e
+	var id int
+	var hash string
+	var disabled bool
+	e := s.DB.QueryRow("SELECT id,password,disabled FROM users WHERE email=?", normalizeEmail(email)).Scan(&id, &hash, &disabled)
+	if e != nil && e != sql.ErrNoRows {
+		return "", errors.New("Authentication temporarily unavailable")
+	}
+	if e == sql.ErrNoRows {
+		hash = dummyPasswordHash
 	}
 	valid := verifyPassword(hash, password)
-	if !valid || strings.ToLower(strings.TrimSpace(email)) != actual {
+	if !valid || e == sql.ErrNoRows || disabled {
 		return "", errors.New("Invalid email or password")
+	}
+	if !strings.HasPrefix(hash, "$argon2id$") {
+		salt := make([]byte, 16)
+		if _, e = rand.Read(salt); e != nil {
+			return "", e
+		}
+		upgraded := encodeHash(salt, argon2.IDKey([]byte(password), salt, 3, 64*1024, 2, 32))
+		if _, e = s.DB.Exec("UPDATE users SET password=? WHERE id=? AND password=?", upgraded, id, hash); e != nil {
+			return "", e
+		}
+		hash = upgraded
 	}
 	token := "vs1_" + RandomHex(32)
 	now := time.Now()
-	_, e = s.DB.Exec("INSERT INTO sessions(hash,created,expires) VALUES(?,?,?)", tokenHash(token), now.UnixMilli(), now.Add(90*24*time.Hour).UnixMilli())
-	return token, e
-}
-func (s *Store) Authorize(token string) error {
-	if !strings.HasPrefix(token, "vs1_") || len(token) != 68 {
-		return ErrAuth
-	}
-	var n int
-	e := s.DB.QueryRow("SELECT COUNT(*) FROM sessions WHERE hash=? AND expires>?", tokenHash(token), time.Now().UnixMilli()).Scan(&n)
+	result, e := s.DB.Exec("INSERT INTO sessions(hash,created,expires,user_id) SELECT ?,?,?,id FROM users WHERE id=? AND disabled=0 AND password=?", tokenHash(token), now.UnixMilli(), now.Add(time.Duration(s.Config.SessionDays)*24*time.Hour).UnixMilli(), id, hash)
 	if e != nil {
-		return e
+		return "", e
 	}
+	n, _ := result.RowsAffected()
 	if n != 1 {
-		return ErrAuth
+		return "", ErrAuth
 	}
-	return nil
+	return token, nil
 }
+func (s *Store) Authorize(token string) error { _, e := s.Principal(token); return e }
 func (s *Store) SignOut(token string) error {
 	_, e := s.DB.Exec("DELETE FROM sessions WHERE hash=?", tokenHash(token))
 	return e
 }
-func (s *Store) ResetPassword(password string) error {
-	hash, e := PasswordHash(password)
-	if e != nil {
-		return e
-	}
-	tx, e := s.DB.Begin()
-	if e != nil {
-		return e
-	}
-	defer tx.Rollback()
-	if _, e = tx.Exec("UPDATE owner SET password=? WHERE id=1", hash); e != nil {
-		return e
-	}
-	if _, e = tx.Exec("DELETE FROM sessions"); e != nil {
-		return e
-	}
-	return tx.Commit()
-}
+func (s *Store) ResetPassword(password string) error { return s.ChangePassword(1, password) }
+
+// Fixed-cost dummy verifier prevents a missing user from skipping Argon2.
+var dummyPasswordHash = encodeHash(make([]byte, 16), make([]byte, 32))
+
 func (s *Store) vaultRow(row *sql.Row) (Vault, error) {
 	var v Vault
 	e := row.Scan(&v.ID, &v.Name, &v.Salt, &v.KeyHash, &v.Encryption, &v.Created, &v.Version)
@@ -301,40 +326,15 @@ func (s *Store) Vaults() ([]Vault, error) {
 	return out, nil
 }
 func (s *Store) CreateVault(name, salt, keyhash string, encryption int) (Vault, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var count int
-	if e := s.DB.QueryRow("SELECT COUNT(*) FROM vaults WHERE deleted=0").Scan(&count); e != nil {
-		return Vault{}, e
-	}
-	if count >= s.Config.MaxVaults {
-		return Vault{}, errors.New("Vault limit reached")
-	}
-	if strings.TrimSpace(name) == "" || len(name) > 200 || salt == "" || len(salt) > 1024 || keyhash == "" || len(keyhash) > 1024 || !Supported(encryption) {
-		return Vault{}, errors.New("Require a name and end-to-end encryption with a supported version")
-	}
-	var n int
-	if e := s.DB.QueryRow("SELECT COUNT(*) FROM vaults WHERE deleted=0").Scan(&n); e != nil {
-		return Vault{}, e
-	}
-	if n >= s.Config.MaxVaults {
-		return Vault{}, errors.New("Remote vault limit reached")
-	}
-	id := RandomHex(16)
-	_, e := s.DB.Exec("INSERT INTO vaults(id,name,salt,keyhash,encryption,created) VALUES(?,?,?,?,?,?)", id, name, salt, keyhash, encryption, time.Now().UnixMilli())
-	if e != nil {
-		return Vault{}, e
-	}
-	return s.Vault(id)
+	return s.CreateVaultFor(1, name, salt, keyhash, encryption)
 }
 
-const recordColumns = "path,relatedpath,extension,hash,ctime,mtime,folder,deleted,size,uid,ts,device,blob"
+const recordColumns = "path,relatedpath,extension,hash,ctime,mtime,folder,deleted,size,uid,ts,device,blob,user_id"
 
 func scanRecord(scan func(...any) error) (Record, error) {
 	var r Record
-	e := scan(&r.Path, &r.Related, &r.Extension, &r.Hash, &r.Ctime, &r.Mtime, &r.Folder, &r.Deleted, &r.Size, &r.UID, &r.TS, &r.Device, &r.Blob)
+	e := scan(&r.Path, &r.Related, &r.Extension, &r.Hash, &r.Ctime, &r.Mtime, &r.Folder, &r.Deleted, &r.Size, &r.UID, &r.TS, &r.Device, &r.Blob, &r.User)
 	r.Pieces = Pieces(r.Size)
-	r.User = 1
 	return r, e
 }
 func (s *Store) Record(vault string, uid int64) (Record, error) {
@@ -380,10 +380,10 @@ func (s *Store) commit(vault string, r Record, token string) (Record, error) {
 	}
 	defer tx.Rollback()
 	var authorized int
-	if e = tx.QueryRow("SELECT COUNT(*) FROM sessions WHERE hash=? AND expires>?", tokenHash(token), time.Now().UnixMilli()).Scan(&authorized); e != nil {
+	if e = tx.QueryRow("SELECT u.id FROM sessions s JOIN users u ON u.id=s.user_id JOIN memberships m ON m.user_id=u.id JOIN vaults v ON v.id=m.vault_id WHERE s.hash=? AND s.expires>? AND u.disabled=0 AND m.vault_id=? AND v.deleted=0", tokenHash(token), time.Now().UnixMilli(), vault).Scan(&authorized); e != nil {
 		return r, e
 	}
-	if authorized != 1 {
+	if authorized < 1 {
 		return r, ErrAuth
 	}
 	var version int64
@@ -395,9 +395,9 @@ func (s *Store) commit(vault string, r Record, token string) (Record, error) {
 	}
 	r.UID = version + 1
 	r.TS = time.Now().UnixMilli()
-	r.User = 1
+	r.User = authorized
 	r.Pieces = Pieces(r.Size)
-	if _, e = tx.Exec("INSERT INTO revisions(vault,uid,path,relatedpath,extension,hash,ctime,mtime,folder,deleted,size,ts,device,blob) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", vault, r.UID, r.Path, r.Related, r.Extension, r.Hash, r.Ctime, r.Mtime, r.Folder, r.Deleted, r.Size, r.TS, r.Device, r.Blob); e != nil {
+	if _, e = tx.Exec("INSERT INTO revisions(vault,uid,path,relatedpath,extension,hash,ctime,mtime,folder,deleted,size,ts,device,blob,user_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", vault, r.UID, r.Path, r.Related, r.Extension, r.Hash, r.Ctime, r.Mtime, r.Folder, r.Deleted, r.Size, r.TS, r.Device, r.Blob, r.User); e != nil {
 		return r, e
 	}
 	if r.Blob != "" {

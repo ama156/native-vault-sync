@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -55,6 +56,8 @@ type client struct {
 	cancel               context.CancelFunc
 	out                  chan outbound
 	vault, token, device string
+	user                 int
+	authReady            chan struct{}
 	authenticated        bool
 	pending              *upload
 }
@@ -105,7 +108,7 @@ func (c *client) cleanupUpload() {
 	if p := c.pending; p != nil {
 		p.file.Close()
 		os.Remove(p.file.Name())
-		c.server.Store.release(p.size)
+		c.server.Store.releaseFor(c.vault, c.user, p.size)
 		c.pending = nil
 	}
 }
@@ -125,7 +128,7 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.SetReadLimit(Chunk)
 	ctx, cancel := context.WithCancel(r.Context())
-	c := &client{server: s, conn: conn, ctx: ctx, cancel: cancel, out: make(chan outbound, 64)}
+	c := &client{server: s, conn: conn, ctx: ctx, cancel: cancel, out: make(chan outbound, 64), authReady: make(chan struct{})}
 	defer cancel()
 	defer conn.CloseNow()
 	defer c.cleanupUpload()
@@ -189,6 +192,10 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 			c.fail(errors.New("Metadata frame too large"))
 			return
 		}
+		if c.authenticated && (!s.limiter.allow("requests-global", s.Store.Config.GlobalRequestsPerMinute) || !s.limiter.allow(fmt.Sprintf("requests:%d", c.user), s.Store.Config.RequestsPerMinute)) {
+			c.reject(errors.New("Request limit reached"))
+			return
+		}
 		var m message
 		if e = json.Unmarshal(data, &m); e != nil {
 			c.fail(errors.New("Invalid JSON message"))
@@ -204,6 +211,10 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			continue
+		}
+		if !c.server.authorizedClient(c) {
+			c.cancel()
+			return
 		}
 		if m.Op == "ping" {
 			c.send(map[string]any{"op": "pong"})
@@ -226,12 +237,30 @@ func (c *client) writer() {
 		case <-c.ctx.Done():
 			return
 		case item := <-c.out:
+			select {
+			case <-c.authReady:
+				if !c.server.authorizedClient(c) {
+					return
+				}
+			default:
+			}
 			data, e := json.Marshal(item.JSON)
 			if e != nil {
 				return
 			}
 			ctx, done := context.WithTimeout(c.ctx, 60*time.Second)
+			c.server.policyMu.RLock()
+			select {
+			case <-c.authReady:
+				if !c.server.authorizedClient(c) {
+					c.server.policyMu.RUnlock()
+					done()
+					return
+				}
+			default:
+			}
 			e = c.conn.Write(ctx, websocket.MessageText, data)
+			c.server.policyMu.RUnlock()
 			done()
 			if item.Done != nil {
 				item.Done <- e
@@ -256,7 +285,15 @@ func (c *client) writer() {
 						return
 					}
 					ctx, done := context.WithTimeout(c.ctx, 60*time.Second)
+					c.server.policyMu.RLock()
+					if !c.server.authorizedClient(c) {
+						c.server.policyMu.RUnlock()
+						done()
+						f.Close()
+						return
+					}
 					e = c.conn.Write(ctx, websocket.MessageBinary, buffer[:size])
+					c.server.policyMu.RUnlock()
 					done()
 					if e != nil {
 						f.Close()
@@ -270,7 +307,8 @@ func (c *client) writer() {
 	}
 }
 func (c *client) init(m message) error {
-	if e := c.server.Store.Authorize(m.Token); e != nil {
+	principal, e := c.server.Store.Principal(m.Token)
+	if e != nil {
 		if errors.Is(e, ErrAuth) {
 			return ErrAuth
 		}
@@ -285,6 +323,9 @@ func (c *client) init(m message) error {
 	s := c.server.Store
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if e = s.Access(principal.ID, m.ID); e != nil {
+		return errors.New("Vault not found")
+	}
 	v, e := s.Vault(m.ID)
 	if e != nil {
 		if errors.Is(e, sql.ErrNoRows) {
@@ -298,11 +339,29 @@ func (c *client) init(m message) error {
 	if m.Version > v.Version {
 		return errors.New("Client cursor exceeds server history; reconnect this vault after restoring server state")
 	}
+	c.server.clientsMu.Lock()
+	count := 0
+	for other := range c.server.clients {
+		select {
+		case <-other.authReady:
+			if other.user == principal.ID {
+				count++
+			}
+		default:
+		}
+	}
+	if count >= s.Config.UserConnections {
+		c.server.clientsMu.Unlock()
+		return errors.New("User connection limit reached")
+	}
+	c.user = principal.ID
 	c.vault = m.ID
 	c.token = m.Token
 	c.device = m.Device
 	c.authenticated = true
-	if e = c.replay(map[string]any{"res": "ok", "userId": 1, "perFileMax": s.Config.MaxFile}); e != nil {
+	close(c.authReady)
+	c.server.clientsMu.Unlock()
+	if e = c.replay(map[string]any{"res": "ok", "userId": principal.ID, "perFileMax": min(s.Config.MaxFile, principal.MaxFile)}); e != nil {
 		return e
 	}
 	var records []Record
@@ -364,6 +423,17 @@ func (c *client) commit(r Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r.Device = c.device
+	if r.Blob != "" {
+		var exists int
+		if e := s.DB.QueryRow("SELECT COUNT(*) FROM blobs WHERE vault=? AND hash=?", c.vault, r.Blob).Scan(&exists); e != nil {
+			return e
+		}
+		if exists == 0 {
+			if e := s.quotaCheck(c.vault, 0); e != nil {
+				return e
+			}
+		}
+	}
 	record, e := s.commit(c.vault, r, c.token)
 	if e != nil {
 		return errors.New("Could not persist revision")
@@ -372,6 +442,9 @@ func (c *client) commit(r Record) error {
 	return nil
 }
 func (c *client) binary(data []byte) error {
+	if !c.server.authorizedClient(c) {
+		return ErrAuth
+	}
 	p := c.pending
 	if !c.authenticated || p == nil {
 		return errors.New("Unexpected binary frame")
@@ -401,13 +474,17 @@ func (c *client) binary(data []byte) error {
 		if e = c.commit(p.record); e != nil {
 			return e
 		}
-		c.server.Store.release(p.size)
+		c.server.Store.releaseFor(c.vault, c.user, p.size)
 		c.pending = nil
 	}
 	c.send(map[string]any{"res": "ok"})
 	return nil
 }
 func (c *client) operation(m message) error {
+	if !c.server.authorizedClient(c) {
+		return ErrAuth
+	}
+
 	s := c.server.Store
 	switch m.Op {
 	case "push":
@@ -426,6 +503,13 @@ func (c *client) operation(m message) error {
 		// v0/v2/v3 content adds a 12-byte IV and 16-byte authentication tag.
 		if m.Size == nil || m.Pieces == nil || *m.Size < 0 || *m.Size > s.Config.MaxFile+28 || *m.Pieces != Pieces(*m.Size) {
 			return errors.New("Invalid ciphertext size or piece count")
+		}
+		principal, e := s.User(c.user)
+		if e != nil {
+			return e
+		}
+		if *m.Size > principal.MaxFile+28 {
+			return errors.New("File limit reached")
 		}
 		r.Size = *m.Size
 		if m.Hash != "" {
@@ -449,12 +533,12 @@ func (c *client) operation(m message) error {
 			c.send(map[string]any{"res": "ok"})
 			return nil
 		}
-		if e := s.reserve(r.Size); e != nil {
+		if e := s.reserveFor(c.vault, c.user, r.Size); e != nil {
 			return e
 		}
 		f, e := os.CreateTemp(filepath.Join(s.Config.DataDir, "uploads"), "upload-")
 		if e != nil {
-			s.release(r.Size)
+			s.releaseFor(c.vault, c.user, r.Size)
 			return errors.New("Could not create upload")
 		}
 		c.pending = &upload{file: f, record: r, size: r.Size, pieces: *m.Pieces}
@@ -512,7 +596,7 @@ func (c *client) operation(m message) error {
 		}
 		c.send(map[string]any{"res": "ok"})
 	case "size":
-		used, e := s.Storage()
+		used, e := s.Usage(c.user)
 		if e != nil {
 			return errors.New("Could not read storage usage")
 		}
@@ -520,13 +604,28 @@ func (c *client) operation(m message) error {
 		if e != nil {
 			return errors.New("Could not read vault usage")
 		}
-		c.send(map[string]any{"res": "ok", "size": used, "limit": s.Config.MaxStorage, "vault_size": vaultSize})
+		c.send(map[string]any{"res": "ok", "size": used, "limit": func() int64 { u, _ := s.User(c.user); return u.MaxStorage }(), "vault_size": vaultSize})
 	case "usernames":
-		account, e := s.Account()
+		rows, e := s.DB.Query("SELECT DISTINCT u.id,u.name FROM users u WHERE u.id IN (SELECT user_id FROM memberships WHERE vault_id=? UNION SELECT user_id FROM revisions WHERE vault=?)", c.vault, c.vault)
 		if e != nil {
-			return errors.New("Account unavailable")
+			return errors.New("Could not read contributors")
 		}
-		c.send(map[string]any{"res": "ok", "users": map[string]any{"1": account["name"]}})
+		users := map[string]string{}
+		for rows.Next() {
+			var id int
+			var name string
+			if e = rows.Scan(&id, &name); e != nil {
+				rows.Close()
+				return e
+			}
+			users[fmt.Sprint(id)] = name
+		}
+		e = rows.Err()
+		rows.Close()
+		if e != nil {
+			return e
+		}
+		c.send(map[string]any{"res": "ok", "users": users})
 	case "purge":
 		return errors.New("Purge is not supported; history is retained indefinitely")
 	default:

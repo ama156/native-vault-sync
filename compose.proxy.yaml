@@ -1,0 +1,11 @@
+# Combine with compose.yaml for a containerized reverse proxy:
+# docker compose -f compose.yaml -f compose.proxy.yaml up -d
+services:
+  vault-sync:
+    ports: !reset []
+    networks:
+      - proxy
+networks:
+  proxy:
+    external: true
+    name: ${VAULT_SYNC_PROXY_NETWORK:-vault-sync-proxy}

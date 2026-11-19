@@ -1,3 +1,5 @@
+Server 0.2.0 adds per-user sessions, administrator-managed co-owner membership and equal quota allocation while preserving these wire shapes. See [multi-user contracts](MULTIUSER.md) and [security](SECURITY.md).
+
 # Native protocol contract
 
 For full request/response examples, see the [API reference](API-REFERENCE.md) and [OpenAPI document](HTTP-API.openapi.json). The [technical deep dive](TECHNICAL-DEEP-DIVE.md) explains the client internals and separates observations from independent implementation choices.
@@ -25,7 +27,7 @@ Vault metadata contains `id`, `name`, `host`, `salt`, `encryption_version`, `reg
 
 In this initial release, remote-vault deletion is a soft deletion: it disconnects clients and removes the vault from discovery, while retaining ciphertext/history and its storage accounting. There is no permanent-purge endpoint. File deletion uses revision tombstones and remains restorable. This retention policy deliberately prevents accidental data reclamation.
 
-`GET /healthz` identifies the service and bridge protocol version and reports readiness. It reveals no account or vault metadata. `/sync` is a WebSocket upgrade endpoint. Unknown account operations, MFA, sharing, migration, password-recovery mail, and public registration are unsupported.
+`GET /healthz` identifies the service and bridge protocol version and reports readiness. It reveals no account or vault metadata. `/sync` is a WebSocket upgrade endpoint. Unknown account operations, MFA, official sharing/invitation/migration APIs, password-recovery mail, and public registration are unsupported.
 
 ## WebSocket
 
@@ -51,7 +53,7 @@ Ordinary requests are serialized by the native client; there are no request-ID f
 - `ping` receives application-level `pong`. Protocol-level WebSocket control frames are handled separately.
 - `purge` returns an explicit unsupported error.
 
-Session authorization is checked on incoming authenticated messages and before revision commit. Revoked sessions are also excluded from subsequent broadcasts. Tokens expire after 90 days. A cursor newer than the server's history is rejected with a reconnect instruction.
+Session authorization is checked on incoming authenticated messages and before revision commit. Revoked sessions are also excluded from subsequent broadcasts. New tokens default to 30-day expiry (configurable); migration preserves existing expiry times. A cursor newer than the server's history is rejected with a reconnect instruction.
 
 ## Storage and recovery
 

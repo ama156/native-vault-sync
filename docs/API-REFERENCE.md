@@ -1,10 +1,18 @@
 # HTTP and WebSocket API reference
 
-Contract for the independent **Vault Sync server 0.1.2**, based on the exercised desktop 1.8.7 and 1.15.1 client flows. It is not a published official Obsidian API or a promise of every official endpoint/feature. See the [technical deep dive](TECHNICAL-DEEP-DIVE.md) for client internals, encryption, routing, persistence and evidence boundaries.
+Contract for the independent **Vault Sync server 0.2.0**, based on the exercised desktop 1.8.7 and 1.15.1 client flows. It is not a published official Obsidian API or a promise of every official endpoint/feature. See the [technical deep dive](TECHNICAL-DEEP-DIVE.md) for client internals, encryption, routing, persistence and evidence boundaries.
 
 The [OpenAPI 3.1 JSON document](HTTP-API.openapi.json) describes the HTTP interface. OpenAPI does not specify the binary WebSocket state machine below.
 
 All examples are illustrative. `<TOKEN>`, `<VAULT_ID>`, `<KEYHASH>`, `<ENCODED_PATH>` and `<ENCODED_HASH>` are placeholders, not usable credentials or ciphertext. Create real encrypted vaults through the native client so its salt/keyhash/version agree; sending arbitrary example encryption metadata does not create a usable native vault.
+
+## Server 0.2.0 authorization update
+
+Wire shapes remain native-compatible. Sessions now identify individual users. Vault list/create/access/rename/delete and every WebSocket operation require the current user's membership. All members are co-owners; only the local administrator CLI grants/revokes membership. Co-owned vaults are returned in `vaults`, with `shared: []`. Unrelated vaults/contributor identities are not exposed.
+
+New sessions default to 30 days; existing session expiries are preserved by migration. New password hashes are Argon2id PHC strings with unique salts; legacy hashes upgrade after successful login. New/reset passwords require 15 characters. Per-user and global resource/storage limits apply. WebSocket login returns the real user ID and the effective file limit; revisions carry their actual author's ID. `usernames` is scoped to current/historical participants in the connected vault.
+
+`size` reports the requesting user's allocated retained ciphertext and allowance, plus the existing `vault_size`. Allocations include retained history and are divided equally among co-owners. Membership changes/disable/reset revoke access during active connections. Revoked sockets may close rather than delivering further error/data frames. These changes supersede the historical single-owner/global-size descriptions below. See [administration](MULTIUSER.md), [security](SECURITY.md) and [backups](BACKUPS.md). No public admin, signup or official invitation endpoints were added.
 
 ## 1. Addresses and conventions
 
@@ -79,7 +87,7 @@ Access-Control-Allow-Headers: Content-Type
 | POST | `/vault/delete` | Body token | Soft-delete a remote vault and disconnect its clients |
 | GET/Upgrade | `/sync` | First WebSocket message | Start native synchronization |
 
-There is no signup, sharing, account-email recovery, password-reset REST API, billing or web-admin API. Local CLI commands administer the owner and sessions. The bridge blocks unsupported native account operations instead of forwarding them to official infrastructure while routing is active.
+There is no public signup, official invitation API, account-email recovery, password-reset REST API, billing or web-admin API. Local CLI commands administer users, sessions, co-ownership and quotas. The bridge blocks unsupported native account operations instead of forwarding them to official infrastructure while routing is active.
 
 ## 3. Account routes
 
@@ -98,9 +106,9 @@ There is no signup, sharing, account-email recovery, password-reset REST API, bi
 }
 ```
 
-`mfa` may be omitted or empty; nonempty MFA is unsupported. Email comparison trims whitespace and is case-insensitive. The password is the initialized owner account password, not a vault encryption password. Tokens are issued as `vs1_` followed by 64 random hex characters; only token hashes are saved. Expiry is 90 days; there is no refresh endpoint or expiry field in this response.
+`mfa` may be omitted or empty; nonempty MFA is unsupported. Email comparison trims whitespace and is case-insensitive. The password is the individual account password, not a vault encryption password. Tokens are issued as `vs1_` followed by 64 random hex characters; only token hashes are saved. New-session expiry defaults to 30 days (configurable); there is no refresh endpoint or expiry field in this response.
 
-The server permits two concurrent password verifications and ten login attempts per rolling minute globally. These are personal-server resource limits, not per-IP quotas.
+The default Argon2 concurrency budget is two jobs. Login throttles apply per IP and normalized account (30/10 attempts per minute by default), with bounded limiter state and configurable global/user request budgets. Trusted proxy handling is described in SECURITY.md.
 
 ### `POST /user/info`
 
@@ -215,7 +223,7 @@ The client creates the encryption metadata. The server saves keyhash/version at 
 
 Response: `{"res":"ok"}`.
 
-Requires an active account session and active vault, exact keyhash equality, matching encryption version, and a host equal to the configured public authority plus `/sync`. This is separate from WebSocket authentication; passing this route does not create an authenticated socket. In this one-owner server, every authorized account session belongs to the owner; there is no sharing/ACL model.
+Requires an active account session and active vault, exact keyhash equality, matching encryption version, and a host equal to the configured public authority plus `/sync`. This is separate from WebSocket authentication; passing this route does not create an authenticated socket. The session user must be a current co-owner; authorization is independent from the encryption identity check.
 
 ### `POST /vault/rename`
 
@@ -238,7 +246,7 @@ Response: `{"res":"ok"}`. Marks the remote vault deleted and disconnects its cli
 ### `GET /healthz`
 
 ```json
-{"service":"vault-sync-server","bridge_protocol":1,"ready":true,"version":"0.1.2"}
+{"service":"vault-sync-server","bridge_protocol":1,"ready":true,"version":"0.2.0"}
 ```
 
 Unready returns 503 with service/protocol/`ready:false`; `version` is not required in that response. No credentials or vault metadata are exposed. The readiness request checks account database access, not TLS/WebSocket reachability, available disk capacity or the completion of native sync. The bridge connection test requires matching service identity, protocol 1 and `ready:true`.
@@ -463,7 +471,7 @@ Request: `{"op":"usernames"}`. Response:
 {"res":"ok","users":{"1":"Owner"}}
 ```
 
-Our server has one owner, so user ID 1 is the only returned user.
+Only current members and historical contributors to the connected vault are returned; IDs are the real server user IDs.
 
 ### `ping` / `pong`
 
@@ -473,7 +481,7 @@ This application heartbeat is separate from WebSocket control ping/pong frames. 
 
 ### `purge` and unknown operations
 
-`{"op":"purge"}` returns an explicit unsupported error because history is retained indefinitely. Unknown operations likewise return `res:err`. There is no migration, sharing, standard/server-managed encryption or capability negotiation for additional encryption formats.
+`{"op":"purge"}` returns an explicit unsupported error because history is retained indefinitely. Unknown operations likewise return `res:err`. Official migration/invitation APIs, standard/server-managed encryption and capability negotiation for additional encryption formats remain unsupported.
 
 ## 9. End-to-end connection sequence
 

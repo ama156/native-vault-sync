@@ -343,9 +343,12 @@ func TestRevokedLiveSessionAndBadOrigin(t *testing.T) {
 		t.Fatal(e)
 	}
 	send(t, c, map[string]any{"op": "ping"})
-	if read(t, c)["res"] != "err" {
-		t.Fatal("revoked session still usable")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, _, e := c.Read(ctx); e == nil {
+		t.Fatal("revoked session delivered data")
 	}
+
 	r, _ := http.NewRequest("GET", f.http.URL+"/healthz", nil)
 	r.Header.Set("Origin", "https://untrusted.example")
 	res, e := http.DefaultClient.Do(r)

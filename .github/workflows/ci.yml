@@ -19,8 +19,36 @@ jobs:
           cache-dependency-path: server/go.sum
       - run: npm ci
       - run: npm run test:plugin
+      - run: npm run test:backup-wrapper
+      - name: Install restic for isolated backup acceptance
+        run: sudo apt-get update && sudo apt-get install -y restic nginx
+      - name: Restic round-trip acceptance
+        run: |
+          go build -o /tmp/vault-sync-server ./cmd/vault-sync-server
+          SYNC_TEST_BINARY=/tmp/vault-sync-server SYNC_TEST_RESTIC=$(command -v restic) node ../tools/backup-smoke.cjs
+        working-directory: server
+      - name: TLS reverse-proxy acceptance
+        run: SYNC_TEST_BINARY=/tmp/vault-sync-server SYNC_TEST_NGINX=/usr/sbin/nginx node tools/proxy-smoke.cjs
       - run: go test -race ./...
         working-directory: server
       - run: go vet ./...
         working-directory: server
       - run: npm run release
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          cache: npm
+      - run: npm ci
+      - uses: docker/setup-buildx-action@v4
+      - run: docker compose config --quiet
+      - run: docker compose -f compose.yaml -f compose.proxy.yaml config --quiet
+      - name: Build local amd64 image (no registry push)
+        run: docker buildx build --platform linux/amd64 --load --tag native-vault-sync:ci .
+      - name: Verify Docker and Compose lifecycle
+        run: node tools/container-smoke.cjs
+      - name: Cross-build arm64 image (local OCI archive only)
+        run: docker buildx build --platform linux/arm64 --output type=oci,dest=/tmp/vault-sync-arm64.oci.tar .

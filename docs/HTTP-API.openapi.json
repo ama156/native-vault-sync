@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Native Vault Sync HTTP API",
-    "version": "0.1.0",
-    "description": "Independent compatible personal server, not an official public Obsidian API. Documents the 0.1.0 HTTP wire contract with 0.1.2 exact iOS Origin support. Session tokens are JSON-body fields; security: [] does not imply account routes are unauthenticated. HTTP 200 may contain an error member. OPTIONS preflight returns 204 after approved Origin checks; headers permit GET,POST,OPTIONS and Content-Type. Allowed origins: app://obsidian.md, capacitor://localhost, literal null, configured public origin, or no Origin. Unknown authenticated POST routes return 501; unrecognized JSON members are ignored. No signup, REST admin, sharing, migration or billing. WebSocket framing is specified separately.",
+    "version": "0.2.0",
+    "description": "Native-compatible multi-user personal Sync server. Tokens identify users; vault operations require current co-owner membership. Co-owned vaults appear in vaults with shared empty. Membership/users/quotas are managed only over local CLI/Unix socket, never public HTTP. Session default 30 days; existing expiries preserved. Native semantic errors use HTTP 200 plus error. Exact native Origins are retained. No public signup, official sharing/invitation, MFA or billing API. See MULTIUSER.md, SECURITY.md and API-REFERENCE.md.",
     "license": {
       "name": "MIT",
       "url": "https://github.com/ama156/native-vault-sync/blob/main/LICENSE"
@@ -39,7 +39,7 @@
           "Account"
         ],
         "summary": "Authenticate the initialized owner account",
-        "description": "Authenticate the initialized owner account. Sessions persist across restart and expire after 90 days. Nonempty MFA is unsupported.",
+        "description": "Authenticate an enabled server-managed account. Sessions persist across restart; new sessions default to 30 days (configurable). Existing session expiry is preserved during migration. Nonempty MFA is unsupported.",
         "security": [],
         "requestBody": {
           "required": true,

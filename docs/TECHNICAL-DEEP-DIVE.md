@@ -4,6 +4,8 @@ This document explains the reverse-engineered desktop client contract and the in
 
 Read alongside the [API reference](API-REFERENCE.md), [OpenAPI document](HTTP-API.openapi.json), [concise protocol contract](PROTOCOL.md), and [compatibility evidence](COMPATIBILITY.md). The OpenAPI document covers HTTP; WebSocket message sequencing is specified in the API reference.
 
+For current multi-user behavior, co-ownership, quotas and secure deployment, read [server 0.2.0 administration](MULTIUSER.md), [security](SECURITY.md) and [backup formats](BACKUPS.md). The original implementation walkthrough below remains a historical desktop/server baseline.
+
 ## 1. Evidence and scope
 
 The labels used below distinguish three things:
@@ -251,7 +253,7 @@ Deterministic identifiers reveal equality and relationships even when names are 
 
 ## 7. Server data model and consistency
 
-**Our implementation:** a single process owns one SQLite metadata database and local immutable ciphertext files. This is not a reconstruction of the official backend's database or deployment topology.
+**Our implementation:** a single process owns one SQLite metadata database and local immutable ciphertext files. This is not a reconstruction of the official backend's database or deployment topology. A Linux binary, Docker CLI and Docker Compose are supported deployment choices; see the [container guide](DOCKER.md) for their shared storage and networking rules.
 
 ```text
 /etc/vault-sync/config.json

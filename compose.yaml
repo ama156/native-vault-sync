@@ -1,0 +1,55 @@
+name: vault-sync
+
+services:
+  vault-sync:
+    image: ${VAULT_SYNC_IMAGE:-native-vault-sync:local}
+    pull_policy: never
+    build:
+      context: .
+    command: ["serve"]
+    environment:
+      VAULT_SYNC_LISTEN: 0.0.0.0:8080
+      VAULT_SYNC_PUBLIC_URL:
+      VAULT_SYNC_DATA_DIR:
+      VAULT_SYNC_MAX_STORAGE_BYTES:
+      VAULT_SYNC_DEFAULT_USER_STORAGE_BYTES:
+      VAULT_SYNC_MAX_FILE_BYTES:
+      VAULT_SYNC_MAX_VAULTS:
+      VAULT_SYNC_SESSION_DAYS:
+      VAULT_SYNC_MAX_CONNECTIONS:
+      VAULT_SYNC_USER_CONNECTIONS:
+      VAULT_SYNC_MAX_UPLOADS:
+      VAULT_SYNC_USER_UPLOADS:
+      VAULT_SYNC_LOGIN_CONCURRENCY:
+      VAULT_SYNC_GLOBAL_REQUESTS_PER_MINUTE:
+      VAULT_SYNC_REQUESTS_PER_MINUTE:
+      VAULT_SYNC_LOGIN_IP_PER_MINUTE:
+      VAULT_SYNC_LOGIN_ACCOUNT_PER_MINUTE:
+      VAULT_SYNC_MAX_TOTAL_VAULTS:
+      VAULT_SYNC_TRUSTED_PROXIES:
+    mem_limit: ${VAULT_SYNC_MEMORY_LIMIT:-1g}
+    cpus: ${VAULT_SYNC_CPUS:-2}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${VAULT_SYNC_PORT:-8080}:8080"
+    volumes:
+      - ${VAULT_SYNC_CONFIG_MOUNT:-config}:/etc/vault-sync
+      - ${VAULT_SYNC_DATA_MOUNT:-data}:/var/lib/vault-sync
+      - ${VAULT_SYNC_BACKUP_MOUNT:-backups}:/backups
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  config:
+  data:
+  backups:

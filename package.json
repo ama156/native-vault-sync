@@ -1,11 +1,15 @@
 {
   "name": "vault-sync",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "build:plugin": "node tools/build-plugin.cjs",
     "test:plugin": "node --test plugin/test/*.test.cjs",
-    "release": "node tools/build-release.cjs"
+    "test:container": "node tools/container-smoke.cjs",
+    "release": "node tools/build-release.cjs",
+    "test:backup": "node tools/backup-smoke.cjs",
+    "test:backup-wrapper": "node --test tools/backup-wrapper.test.cjs",
+    "test:proxy": "node tools/proxy-smoke.cjs"
   },
   "dependencies": {
     "ws": "8.23.0"

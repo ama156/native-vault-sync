@@ -1,0 +1,11 @@
+[Unit]
+Description=Optional daily Vault Sync backup (server local time)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=vault-sync-backup.service
+
+[Install]
+WantedBy=timers.target

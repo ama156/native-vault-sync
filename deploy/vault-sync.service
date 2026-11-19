@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 User=vault-sync
 Group=vault-sync
+EnvironmentFile=-/etc/vault-sync/runtime.env
 ExecStart=/usr/local/bin/vault-sync-server serve --config /etc/vault-sync/config.json
 WorkingDirectory=/var/lib/vault-sync
 Restart=on-failure

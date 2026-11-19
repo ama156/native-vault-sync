@@ -2,10 +2,26 @@
 
 An experimental native-Sync-compatible personal server, desktop connection adapter and opt-in iOS test adapter. The plugin routes connections; Obsidian retains file indexing, encryption, transfer decisions, and merging. No application archive is patched. No separate desktop proxy or Docker installation is needed.
 
-The server is a single Linux binary behind your existing HTTPS reverse proxy. The desktop plugin contains its own loopback WebSocket relay. This is an independent interoperability project, not an official Obsidian product.
+The server runs as a Linux binary, a locally built Docker container, or Docker Compose behind your existing HTTPS reverse proxy. The desktop plugin contains its own loopback WebSocket relay. This is an independent interoperability project, not an official Obsidian product.
+
+## Deployment options
+
+The [Docker and Docker Compose guide](docs/DOCKER.md) covers both container options, persistent volumes, HTTPS, administration and backup/restore. No image is published to Docker Hub or another registry; build it locally from this repository.
+
+Quick Compose setup, after cloning the repository and replacing the domain/email:
+
+```sh
+docker compose build
+docker compose run --rm vault-sync init --listen 0.0.0.0:8080 \
+  --public-url https://sync.example.com --email you@example.com
+docker compose up -d --wait
+```
+
+Enter the custom-account password when prompted. The published host port is loopback-only; configure HTTPS with the supplied Nginx example. The binary/systemd installation below remains available independently of Docker.
 
 ## Technical documentation
 
+- [Docker deployment](docs/DOCKER.md): Docker CLI and Compose options, volumes, networking, upgrades and offline restore.
 - [iPhone and desktop implementation](docs/PLATFORM-ADAPTERS.md): why native account screens show the custom session, platform-specific login/routing, token storage, WebSockets and lifecycle.
 - [Technical deep dive](docs/TECHNICAL-DEEP-DIVE.md): reverse-engineered client layers, permissions, account routing, encryption, native scheduling, durable storage, replay and failure boundaries.
 - [API reference](docs/API-REFERENCE.md): every implemented HTTP route, JSON examples, WebSocket state machine, binary framing, history, restore and error semantics.
@@ -15,7 +31,11 @@ The server is a single Linux binary behind your existing HTTPS reverse proxy. Th
 
 ## Current status
 
-Plugin **0.1.3** adds iPhone attachment/selective-sync controls on top of the experimental **iOS 1.15.1** custom login, vault selector and direct WSS adapter. Server **0.1.2** remains compatible and unchanged. Note sync/recovery and recovered PNG/PDF transfer are user-confirmed; ZIP/EPUB and the new settings UI still need device confirmation. Broader qualification remains incomplete. Existing accounts/connections are refused. Desktop adapters remain limited to **1.8.7** and **1.15.1**; Android remains diagnostic only. Follow the [mobile test installation guide](docs/MOBILE-STATUS.md) and its evidence limits. No directory submission is planned during testing.
+Server/plugin **0.2.0** add multiple users, CLI-managed co-owned vaults with equal storage allocation, runtime configuration for binary/Docker/Compose, hardened reverse-proxy examples, and ZIP/directory/restic backups. Existing data migrates with a verified pre-upgrade snapshot. The desktop and iPhone adapter logic is unchanged from plugin 0.1.3; Android remains diagnostic only. Read the migration guide before upgrading a live server. No community-directory submission is planned during testing.
+
+- [Multi-user accounts, sharing and migration](docs/MULTIUSER.md)
+- [ZIP, directory and restic backups](docs/BACKUPS.md)
+- [Security model and internet deployment](docs/SECURITY.md)
 
 The plugin is **not yet published or approved in the community directory**. A release ZIP cannot be installed by pasting its URL into Obsidian's normal plugin browser. Installation through **Settings → Community plugins → Browse** requires directory publication. The repository and submission instructions are in `docs/PUBLISHING.md`.
 
@@ -36,7 +56,7 @@ sudo -u vault-sync /usr/local/bin/vault-sync-server init \
   --email you@example.com
 ```
 
-Enter a new account password at the terminal prompt. Use a different password from both your official account and your vault encryption password. Initialization creates one owner; public signup is disabled.
+Enter a new account password of at least 15 characters at the terminal prompt. Use a different password from both your official account and your vault encryption password. Initialization creates the first user; public signup is disabled and additional users are managed through the administrator CLI.
 
 ```sh
 sudo install -m 0644 deploy/vault-sync.service /etc/systemd/system/vault-sync.service
@@ -79,13 +99,14 @@ vault-sync-server sessions revoke --config /etc/vault-sync/config.json --id HASH
 vault-sync-server password-reset --config /etc/vault-sync/config.json
 ```
 
-Run administrative commands as the service user, or with sufficient permissions to access its private data directory. Session IDs are hashes, not bearer tokens. Password reset revokes all sessions. Account sessions expire after 90 days; sign in again through native settings when needed.
+Run administrative commands as the service user, or with sufficient permissions to access its private data directory. Session IDs are hashes, not bearer tokens. Password reset revokes all sessions. New account sessions default to 30 days (configurable); sign in again through native settings when needed.
 
 Back up while the service is stopped. The command obtains the service's exclusive data lock and creates a consistent SQLite snapshot plus ciphertext and configuration:
 
 ```sh
+sudo install -d -m 0700 -o vault-sync -g vault-sync /var/backups/vault-sync
 sudo systemctl stop vault-sync
-sudo -u vault-sync vault-sync-server backup --config /etc/vault-sync/config.json --output /var/lib/vault-sync/backup.tar.gz
+sudo -u vault-sync vault-sync-server backup --config /etc/vault-sync/config.json --output /var/backups/vault-sync/backup.tar.gz
 sudo systemctl start vault-sync
 ```
 
@@ -97,7 +118,7 @@ vault-sync-server restore --archive backup.tar.gz --config /path/to/new-config.j
 
 Restore checks database integrity and ciphertext checksums. After rolling back a server to an older backup, clients with newer revision cursors must reconnect using native vault setup. The server rejects an ahead-of-server cursor rather than silently dropping changes.
 
-Defaults are 10 vaults, 10 GiB ciphertext, and 208,666,624 plaintext bytes per file (plus the native encryption overhead on the wire). History and file tombstones count toward retained storage; automatic pruning, `purge`, sharing, and migration are unsupported. See `docs/PROTOCOL.md` for details, including vault deletion behavior.
+Defaults are 10 accessible vaults and 10 GiB allocated ciphertext per user, a separate 10 GiB global ciphertext cap, and 208,666,624 plaintext bytes per file (plus the native encryption overhead on the wire). History and file tombstones count toward retained storage; automatic pruning, `purge`, official invitation APIs and automatic pruning are unsupported. See `docs/PROTOCOL.md` for details, including vault deletion behavior.
 
 ## Build and test
 

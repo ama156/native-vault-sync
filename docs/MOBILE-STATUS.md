@@ -1,5 +1,7 @@
 # One plugin: desktop adapter and experimental iOS adapter — plugin 0.1.3
 
+**Server/plugin 0.2.0 update:** the platform adapters described below are unchanged. Server 0.2.0 adds multiple users and administrator-managed co-ownership; see [migration and account operations](MULTIUSER.md). The [iOS source-harness result](ios-multiuser-0.2.0.json) verifies encrypted co-owner transfers against the new server. This is not a new on-device qualification. Use the [0.2.0 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.2.0) for current assets; retain your existing bridge settings and session when updating.
+
 **iPhone note sync/recovery is user-confirmed. PNG/PDF transfer recovered after the owner changed Mac settings and restarted the iPhone app. ZIP/EPUB and the new settings UI still need device confirmation.** Plugin 0.1.3 adds attachment/selective-sync controls and a native activity-log button inside bridge settings, avoiding the native account-settings sign-in gate. Version 0.1.2 introduced the opt-in iOS 1.15.1 adapter with custom login, remote-vault selection and direct WebSocket synchronization. Version 0.1.1 was diagnostic only. Android remains diagnostic only.
 
 Use the [plugin 0.1.3 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.1.3). Server 0.1.2 remains compatible and unchanged; no server upgrade is required from 0.1.2. For older servers, use the [0.1.2 server binaries](https://github.com/ama156/native-vault-sync/releases/tag/0.1.2). No community-directory submission is being made.

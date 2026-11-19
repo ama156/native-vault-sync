@@ -1,0 +1,14 @@
+# Allow only build inputs. Profiles, credentials, releases and vaults never enter
+# the Docker build context, even when they exist elsewhere in the repository.
+**
+!Dockerfile
+!.dockerignore
+!server/
+!server/go.mod
+!server/go.sum
+!server/cmd/
+!server/cmd/**
+!server/internal/
+!server/internal/**
+!LICENSE
+!THIRD_PARTY_NOTICES.md

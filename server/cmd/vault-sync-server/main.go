@@ -7,12 +7,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -44,7 +46,7 @@ func password(stdin bool) (string, error) {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return "", errors.New("password prompt requires a terminal; use --password-stdin for automation")
 	}
-	fmt.Fprint(os.Stderr, "Account password (minimum 12 characters): ")
+	fmt.Fprint(os.Stderr, "Account password (minimum 15 characters): ")
 	b, e := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Fprintln(os.Stderr)
 	return string(b), e
@@ -56,7 +58,7 @@ func output(v any) error {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: vault-sync-server init|serve|status|password-reset|sessions|backup|restore|version")
+		return errors.New("usage: vault-sync-server init|serve|status|users|vaults|password-reset|sessions|backup|restore|version")
 	}
 	if args[0] == "version" {
 		fmt.Println(syncserver.Version)
@@ -65,7 +67,7 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 	action := ""
-	if command == "sessions" {
+	if command == "sessions" || command == "users" || command == "vaults" {
 		if len(rest) == 0 {
 			return errors.New("usage: sessions list|revoke --config FILE [--id ID]")
 		}
@@ -73,23 +75,40 @@ func run(args []string) error {
 		rest = rest[1:]
 	}
 	f, configFile := flags(command)
-	var email, publicURL, dataDir, name, archive, backupFile, id *string
+	var email, publicURL, dataDir, name, archive, backupFile, id, listen *string
 	var stdin *bool
+	var passwordFile, format, snapshot, user, vault *string
+	var storage, fileLimit *int64
+	var vaultLimit *int
 	switch command {
 	case "init":
 		email = f.String("email", "", "owner email")
 		name = f.String("name", "Owner", "owner display name")
 		publicURL = f.String("public-url", "", "public HTTPS origin")
 		dataDir = f.String("data-dir", "/var/lib/vault-sync", "persistent data directory")
+		listen = f.String("listen", syncserver.DefaultConfig().Listen, "listen IP:port (containers: 0.0.0.0:8080)")
 		stdin = f.Bool("password-stdin", false, "read password from stdin")
+		passwordFile = f.String("password-file", "", "read password from a mounted secret file")
 	case "password-reset":
 		stdin = f.Bool("password-stdin", false, "read password from stdin")
-	case "sessions":
+		passwordFile = f.String("password-file", "", "read password from a mounted secret file")
+	case "users", "vaults", "sessions":
+		user = f.String("user", "", "user email or numeric ID")
+		email = f.String("email", "", "email for new user")
+		name = f.String("name", "User", "display name")
+		vault = f.String("vault", "", "vault ID")
+		storage = f.Int64("max-storage-bytes", 0, "user ciphertext allowance")
+		fileLimit = f.Int64("max-file-bytes", 0, "user file limit")
+		vaultLimit = f.Int("max-vaults", 0, "user vault limit")
+		stdin = f.Bool("password-stdin", false, "read password from stdin")
+		passwordFile = f.String("password-file", "", "read password from mounted secret file")
 		id = f.String("id", "", "full hashed session ID returned by sessions list")
 	case "backup":
-		backupFile = f.String("output", "", "new .tar.gz backup filename")
+		backupFile = f.String("output", "", "new backup destination")
+		format = f.String("format", "tar.gz", "tar.gz, zip or directory")
 	case "restore":
-		archive = f.String("archive", "", "backup .tar.gz filename")
+		archive = f.String("archive", "", "backup archive, or - for legacy tar stdin")
+		snapshot = f.String("snapshot", "", "snapshot directory")
 		dataDir = f.String("data-dir", "", "new absolute data directory")
 	case "serve", "status":
 	default:
@@ -100,6 +119,31 @@ func run(args []string) error {
 	}
 	if f.NArg() != 0 {
 		return errors.New("unexpected positional arguments")
+	}
+	if command == "users" || command == "vaults" || command == "sessions" {
+		c, e := syncserver.LoadConfig(*configFile)
+		if e != nil {
+			return e
+		}
+		request := syncserver.AdminRequest{Action: command + "." + action, Email: *email, Name: *name, Vault: *vault, Session: *id, Storage: *storage, File: *fileLimit, Vaults: *vaultLimit}
+		if *user != "" {
+			if n, e := strconv.Atoi(*user); e == nil {
+				request.User = n
+			} else {
+				request.Email = *user
+			}
+		}
+		if command == "users" && (action == "add" || action == "password-reset") {
+			request.Password, e = readPassword(*stdin, *passwordFile)
+			if e != nil {
+				return e
+			}
+		}
+		data, e := syncserver.Admin(c, request)
+		if e != nil {
+			return e
+		}
+		return output(data)
 	}
 	if command == "init" {
 		if _, e := os.Stat(*configFile); !os.IsNotExist(e) {
@@ -117,17 +161,36 @@ func run(args []string) error {
 			}
 			*email = strings.TrimSpace(v)
 		}
-		if *publicURL == "" {
-			return errors.New("--public-url is required")
-		}
+
 		c := syncserver.DefaultConfig()
-		c.PublicURL = strings.TrimSuffix(*publicURL, "/")
-		abs, e := filepath.Abs(*dataDir)
+		if e := c.ApplyEnv(); e != nil {
+			return e
+		}
+		f.Visit(func(flag *flag.Flag) {
+			switch flag.Name {
+			case "listen":
+				c.Listen = *listen
+			case "public-url":
+				c.PublicURL = strings.TrimSuffix(*publicURL, "/")
+			case "data-dir":
+				c.DataDir = *dataDir
+			}
+		})
+		if c.DataDir == "" {
+			c.DataDir = *dataDir
+		}
+		if c.PublicURL == "" {
+			return errors.New("--public-url or VAULT_SYNC_PUBLIC_URL is required")
+		}
+		/* effective configuration already includes explicit flags */
+		_ = listen
+
+		abs, e := filepath.Abs(c.DataDir)
 		if e != nil {
 			return e
 		}
 		c.DataDir = abs
-		p, e := password(*stdin)
+		p, e := readPassword(*stdin, *passwordFile)
 		if e != nil {
 			return e
 		}
@@ -146,24 +209,37 @@ func run(args []string) error {
 		return nil
 	}
 	if command == "restore" {
-		if *archive == "" || *dataDir == "" {
+		if (*archive == "" && *snapshot == "") || *dataDir == "" {
 			return errors.New("--archive and --data-dir are required")
 		}
-		return syncserver.Restore(*archive, *configFile, *dataDir)
+		return syncserver.RestoreSource(*archive, *snapshot, *configFile, *dataDir)
 	}
 	if command == "backup" {
 		if *backupFile == "" {
 			return errors.New("--output is required")
 		}
-		return syncserver.Backup(*configFile, *backupFile)
+		return syncserver.BackupFormat(*configFile, *backupFile, *format)
 	}
 	c, e := syncserver.LoadConfig(*configFile)
 	if e != nil {
 		return e
 	}
 	if command == "status" {
+		// Wildcard addresses are bind destinations, not health-check targets.
+		// Loopback also keeps local checks out of HTTP_PROXY configurations.
+		host, port, e := net.SplitHostPort(c.Listen)
+		if e != nil {
+			return e
+		}
+		if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
+			if ip.To4() != nil {
+				host = "127.0.0.1"
+			} else {
+				host = "::1"
+			}
+		}
 		client := http.Client{Timeout: 3 * time.Second}
-		resp, e := client.Get("http://" + c.Listen + "/healthz")
+		resp, e := client.Get("http://" + net.JoinHostPort(host, port) + "/healthz")
 		if e != nil {
 			return errors.New("service is not reachable on the configured listen address")
 		}
@@ -177,6 +253,14 @@ func run(args []string) error {
 		}
 		return output(health)
 	}
+	if command == "password-reset" {
+		p, e := readPassword(*stdin, *passwordFile)
+		if e != nil {
+			return e
+		}
+		_, e = syncserver.Admin(c, syncserver.AdminRequest{Action: "users.password-reset", User: 1, Password: p})
+		return e
+	}
 	s, e := syncserver.Open(c, command == "serve")
 	if e != nil {
 		return e
@@ -184,7 +268,7 @@ func run(args []string) error {
 	defer s.Close()
 	switch command {
 	case "password-reset":
-		p, e := password(*stdin)
+		p, e := readPassword(*stdin, *passwordFile)
 		if e != nil {
 			return e
 		}
@@ -232,6 +316,11 @@ func run(args []string) error {
 		logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 		handler := syncserver.NewServer(s, logger)
 		defer handler.Close()
+		stopControl, e := handler.StartControl()
+		if e != nil {
+			return e
+		}
+		defer stopControl()
 		listener, e := net.Listen("tcp", c.Listen)
 		if e != nil {
 			return e
@@ -255,4 +344,26 @@ func run(args []string) error {
 		return e
 	}
 	return nil
+}
+
+func readPassword(stdin bool, file string) (string, error) {
+	if file == "" {
+		return password(stdin)
+	}
+	if stdin {
+		return "", errors.New("choose stdin or password file")
+	}
+	f, e := os.Open(file)
+	if e != nil {
+		return "", e
+	}
+	defer f.Close()
+	b, e := io.ReadAll(io.LimitReader(f, 1027))
+	if e != nil {
+		return "", e
+	}
+	if len(b) > 1026 {
+		return "", errors.New("password file too large")
+	}
+	return strings.TrimSuffix(strings.TrimSuffix(string(b), "\n"), "\r"), nil
 }

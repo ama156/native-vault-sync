@@ -1,0 +1,12 @@
+[Unit]
+Description=Consistent Vault Sync snapshot and external restic backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/vault-sync/runtime.env
+EnvironmentFile=/etc/vault-sync/backup.env
+ExecStart=/usr/local/libexec/vault-sync-backup
+UMask=0077
+Nice=10

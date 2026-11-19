@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -22,12 +23,14 @@ type Server struct {
 	loginSlots chan struct{}
 	loginMu    sync.Mutex
 	attempts   []time.Time
+	limiter    rateLimiter
+	policyMu   sync.RWMutex
 	closing    bool
 	wg         sync.WaitGroup
 }
 
 func NewServer(store *Store, log *slog.Logger) *Server {
-	return &Server{Store: store, Log: log, clients: map[*client]bool{}, slots: make(chan struct{}, 64), loginSlots: make(chan struct{}, 2)}
+	return &Server{Store: store, Log: log, clients: map[*client]bool{}, slots: make(chan struct{}, store.Config.MaxConnections), loginSlots: make(chan struct{}, store.Config.LoginConcurrency)}
 }
 func (s *Server) Close() {
 	s.clientsMu.Lock()
@@ -59,6 +62,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(204)
+		return
+	}
+	if !s.limiter.allow("requests-global", s.Store.Config.GlobalRequestsPerMinute) {
+		reply(w, 429, map[string]any{"error": "Server request limit reached"})
 		return
 	}
 	if r.Method == "GET" && r.URL.Path == "/healthz" {
@@ -94,6 +101,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Host       string `json:"host"`
 		Encryption int    `json:"encryption_version"`
 	}
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(30 * time.Second))
+	defer http.NewResponseController(w).SetWriteDeadline(time.Time{})
+	_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(15 * time.Second))
+	defer http.NewResponseController(w).SetReadDeadline(time.Time{})
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 65536))
 	if e := decoder.Decode(&m); e != nil {
 		reply(w, 400, map[string]any{"error": "Invalid JSON body"})
@@ -110,22 +121,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, 200, map[string]any{"error": e.Error()})
 	}
 	if r.URL.Path == "/user/signin" {
-		s.loginMu.Lock()
-		now := time.Now()
-		kept := s.attempts[:0]
-		for _, t := range s.attempts {
-			if now.Sub(t) < time.Minute {
-				kept = append(kept, t)
-			}
-		}
-		s.attempts = kept
-		if len(s.attempts) >= 10 {
-			s.loginMu.Unlock()
-			reply(w, 429, map[string]any{"error": "Too many login attempts; retry in one minute"})
+		if !s.limiter.allow("login-ip:"+s.Store.Config.clientIP(r), s.Store.Config.LoginIPPerMinute) || !s.limiter.allow(accountRateKey(m.Email), s.Store.Config.LoginAccountPerMinute) {
+			reply(w, 429, map[string]any{"error": "Too many login attempts"})
 			return
 		}
-		s.attempts = append(s.attempts, now)
-		s.loginMu.Unlock()
 		select {
 		case s.loginSlots <- struct{}{}:
 			defer func() { <-s.loginSlots }()
@@ -142,7 +141,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(e)
 			return
 		}
-		account, e := s.Store.Account()
+		principal, e := s.Store.Principal(token)
+		if e != nil {
+			fail(ErrAuth)
+			return
+		}
+		account, e := s.Store.AccountFor(principal.ID)
 		if e != nil {
 			fail(errors.New("Account unavailable"))
 			return
@@ -151,7 +155,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, 200, account)
 		return
 	}
-	if e := s.Store.Authorize(m.Token); e != nil {
+	if r.URL.Path == "/user/signout" || r.URL.Path == "/vault/delete" {
+		s.policyMu.Lock()
+		defer s.policyMu.Unlock()
+	} else {
+		s.policyMu.RLock()
+		defer s.policyMu.RUnlock()
+	}
+	principal, e := s.Store.Principal(m.Token)
+	if e != nil {
 		if errors.Is(e, ErrAuth) {
 			fail(ErrAuth)
 		} else {
@@ -159,15 +171,27 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if !s.limiter.allow(fmt.Sprintf("requests:%d", principal.ID), s.Store.Config.RequestsPerMinute) {
+		reply(w, 429, map[string]any{"error": "Too many requests"})
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/vault/") && r.URL.Path != "/vault/list" && r.URL.Path != "/vault/create" && r.URL.Path != "/vault/regions" {
+		if e = s.Store.Access(principal.ID, m.Vault); e != nil {
+			fail(errors.New("Vault not found"))
+			return
+		}
+	}
+
 	switch r.URL.Path {
 	case "/user/info":
-		a, e := s.Store.Account()
+		a, e := s.Store.AccountFor(principal.ID)
 		if e != nil {
 			fail(errors.New("Account unavailable"))
 			return
 		}
 		reply(w, 200, a)
 	case "/user/signout":
+		defer s.disconnectUnauthorized()
 		if e := s.Store.SignOut(m.Token); e != nil {
 			fail(errors.New("Could not revoke session"))
 			return
@@ -176,12 +200,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/subscription/list":
 		reply(w, 200, map[string]any{"sync": true})
 	case "/vault/list":
-		v, e := s.Store.Vaults()
+		v, e := s.Store.VaultsFor(principal.ID)
 		if e != nil {
 			fail(errors.New("Could not list vaults"))
 			return
 		}
-		reply(w, 200, map[string]any{"vaults": v, "shared": []any{}, "limit": s.Store.Config.MaxVaults})
+		reply(w, 200, map[string]any{"vaults": v, "shared": []any{}, "limit": principal.MaxVaults})
 	case "/vault/regions":
 		reply(w, 200, map[string]any{"regions": []any{map[string]any{"value": "self-hosted", "name": "Self-hosted"}}})
 	case "/vault/create":
@@ -189,16 +213,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(errors.New("Vault requires a name, salt, keyhash, and supported end-to-end encryption version"))
 			return
 		}
-		var count int
-		if e := s.Store.DB.QueryRow("SELECT COUNT(*) FROM vaults WHERE deleted=0").Scan(&count); e != nil {
-			fail(errors.New("Database unavailable"))
-			return
-		}
-		if count >= s.Store.Config.MaxVaults {
-			fail(errors.New("Vault limit reached"))
-			return
-		}
-		v, e := s.Store.CreateVault(m.Name, m.Salt, m.KeyHash, m.Encryption)
+		v, e := s.Store.CreateVaultFor(principal.ID, m.Name, m.Salt, m.KeyHash, m.Encryption)
 		if e != nil {
 			fail(errors.New("Could not create vault"))
 			return
@@ -230,6 +245,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(w, 200, map[string]any{"res": "ok"})
 	case "/vault/rename":
+		if s.Store.Access(principal.ID, m.Vault) != nil {
+			fail(errors.New("Vault not found"))
+			return
+		}
 		if strings.TrimSpace(m.Name) == "" || len(m.Name) > 256 {
 			fail(errors.New("Invalid vault name"))
 			return
@@ -248,6 +267,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(w, 200, map[string]any{"res": "ok"})
 	case "/vault/delete":
+		if s.Store.Access(principal.ID, m.Vault) != nil {
+			fail(errors.New("Vault not found"))
+			return
+		}
 		s.Store.mu.Lock()
 		result, e := s.Store.DB.Exec("UPDATE vaults SET deleted=1 WHERE id=? AND deleted=0", m.Vault)
 		if e == nil {

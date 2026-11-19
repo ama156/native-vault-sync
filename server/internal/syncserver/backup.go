@@ -12,102 +12,6 @@ import (
 )
 
 // Offline backup uses the same exclusive data-directory lock as the service.
-func Backup(configFile, output string) error {
-	c, e := LoadConfig(configFile)
-	if e != nil {
-		return e
-	}
-	s, e := Open(c, true)
-	if e != nil {
-		return e
-	}
-	defer s.Close()
-	// VACUUM INTO creates a consistent SQLite snapshot even if an administrative
-	// CLI changes a session while the (stopped) service's data lock is held.
-	snapshot := filepath.Join(c.DataDir, "backup-"+RandomHex(12)+".sqlite")
-	defer os.Remove(snapshot)
-	if _, e = s.DB.Exec("VACUUM INTO ?", snapshot); e != nil {
-		return e
-	}
-	f, e := os.OpenFile(output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if e != nil {
-		return e
-	}
-	success := false
-	defer func() {
-		f.Close()
-		if !success {
-			os.Remove(output)
-		}
-	}()
-	gz := gzip.NewWriter(f)
-	tw := tar.NewWriter(gz)
-	add := func(name string, reader io.Reader, size int64) error {
-		if e := tw.WriteHeader(&tar.Header{Name: name, Mode: 0600, Size: size, Typeflag: tar.TypeReg}); e != nil {
-			return e
-		}
-		_, e := io.CopyN(tw, reader, size)
-		return e
-	}
-	b, e := json.MarshalIndent(c, "", "  ")
-	if e != nil {
-		return e
-	}
-	if e = add("config.json", strings.NewReader(string(b)), int64(len(b))); e != nil {
-		return e
-	}
-	for _, entry := range []string{"metadata.sqlite", "blobs"} {
-		walkPath := filepath.Join(c.DataDir, entry)
-		if entry == "metadata.sqlite" {
-			walkPath = snapshot
-		}
-		e = filepath.WalkDir(walkPath, func(p string, d os.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if d.IsDir() {
-				return nil
-			}
-			info, e := d.Info()
-			if e != nil {
-				return e
-			}
-			if !info.Mode().IsRegular() {
-				return errors.New("backup contains a nonregular file")
-			}
-			in, e := os.Open(p)
-			if e != nil {
-				return e
-			}
-			defer in.Close()
-			relative, e := filepath.Rel(c.DataDir, p)
-			if e != nil {
-				return e
-			}
-			if entry == "metadata.sqlite" {
-				relative = "metadata.sqlite"
-			}
-			return add(filepath.ToSlash(relative), in, info.Size())
-		})
-		if e != nil {
-			return e
-		}
-	}
-	if e = tw.Close(); e != nil {
-		return e
-	}
-	if e = gz.Close(); e != nil {
-		return e
-	}
-	if e = f.Sync(); e != nil {
-		return e
-	}
-	if e = f.Close(); e != nil {
-		return e
-	}
-	success = true
-	return nil
-}
 func Restore(archive, configFile, dataDir string) error {
 	if !filepath.IsAbs(dataDir) {
 		return errors.New("restore data directory must be absolute")
@@ -126,18 +30,22 @@ func Restore(archive, configFile, dataDir string) error {
 		return e
 	}
 	defer os.RemoveAll(temp)
-	f, e := os.Open(archive)
-	if e != nil {
-		return e
+	var input io.Reader = os.Stdin
+	if archive != "-" {
+		f, e := os.Open(archive)
+		if e != nil {
+			return e
+		}
+		defer f.Close()
+		input = f
 	}
-	defer f.Close()
-	gz, e := gzip.NewReader(f)
+	gz, e := gzip.NewReader(input)
 	if e != nil {
 		return e
 	}
 	defer gz.Close()
 	tr := tar.NewReader(gz)
-	var c Config
+	c := DefaultConfig()
 	seen := map[string]bool{}
 	var total int64
 	for {
@@ -167,9 +75,12 @@ func Restore(archive, configFile, dataDir string) error {
 			if e = c.Validate(); e != nil {
 				return e
 			}
+			if e = writePrivate(filepath.Join(temp, "config.json"), strings.NewReader(string(b))); e != nil {
+				return e
+			}
 			continue
 		}
-		if !seen["config.json"] || (name != "metadata.sqlite" && !strings.HasPrefix(name, "blobs/")) {
+		if !seen["config.json"] || (name != "metadata.sqlite" && name != "manifest.json" && !strings.HasPrefix(name, "blobs/")) {
 			return errors.New("unexpected backup entry")
 		}
 		total += h.Size
@@ -200,6 +111,14 @@ func Restore(archive, configFile, dataDir string) error {
 	if !seen["config.json"] || !seen["metadata.sqlite"] {
 		return errors.New("incomplete backup")
 	}
+	if _, e = io.Copy(io.Discard, gz); e != nil {
+		return e
+	}
+	if e = verifySnapshot(temp, false); e != nil {
+		return e
+	}
+	os.Remove(filepath.Join(temp, "config.json"))
+	os.Remove(filepath.Join(temp, "manifest.json"))
 	c.DataDir = temp
 	check, e := Open(c, true)
 	if e != nil {
@@ -218,6 +137,9 @@ func Restore(archive, configFile, dataDir string) error {
 		return e
 	}
 	c.DataDir = dataDir
+	if e = syncSnapshotTree(temp); e != nil {
+		return e
+	}
 	if e = os.Rename(temp, dataDir); e != nil {
 		return e
 	}
