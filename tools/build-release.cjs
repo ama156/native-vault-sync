@@ -45,6 +45,9 @@ for (const arch of ["amd64", "arm64"]) {
   fs.cpSync(path.join(root, "deploy"), path.join(staging, "deploy"), {
     recursive: true,
   });
+  fs.cpSync(path.join(root, "docs"), path.join(staging, "docs"), {
+    recursive: true,
+  });
   run("tar", [
     "-czf",
     path.join(out, `vault-sync-server_${version}_linux_${arch}.tar.gz`),
