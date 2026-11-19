@@ -38,7 +38,7 @@
         "tags": [
           "Account"
         ],
-        "summary": "Authenticate the initialized owner account",
+        "summary": "Authenticate a server-managed account",
         "description": "Authenticate an enabled server-managed account. Sessions persist across restart; new sessions default to 30 days (configurable). Existing session expiry is preserved during migration. Nonempty MFA is unsupported.",
         "security": [],
         "requestBody": {

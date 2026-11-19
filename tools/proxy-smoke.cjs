@@ -123,7 +123,7 @@ async function main() {
       path.join(root, "nginx.conf"),
       "pid " +
         root +
-        "/nginx.pid;\nevents {worker_connections 128;}\nhttp {client_body_temp_path " +
+        "/nginx.pid;\nerror_log stderr;\nevents {worker_connections 128;}\nhttp {access_log off;client_body_temp_path " +
         root +
         "/body;proxy_temp_path " +
         root +

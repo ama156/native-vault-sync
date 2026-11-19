@@ -429,6 +429,13 @@ func (c *client) commit(r Record) error {
 			return e
 		}
 		if exists == 0 {
+			user, err := s.User(c.user)
+			if err != nil {
+				return err
+			}
+			if r.Size > min(s.Config.MaxFile, user.MaxFile)+28 {
+				return errors.New("File limit reached")
+			}
 			if e := s.quotaCheck(c.vault, 0); e != nil {
 				return e
 			}

@@ -1,6 +1,6 @@
 {
   "status": "passed for isolated source integration; real iPhone qualification pending",
-  "at": "2026-11-19T10:35:16.289Z",
+  "at": "2026-11-19T11:36:16.986Z",
   "sourceSha256": "ffd620f9ee985cc4eb93ab25ba5871a33c9460b68035f2d74c8d4ddc2d43ef91",
   "mode": "Original iOS engine/filter/crypto/transport in isolated VM, synthetic vault/secret adapters, real Go listener",
   "checks": [

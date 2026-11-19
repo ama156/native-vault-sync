@@ -267,48 +267,6 @@ func run(args []string) error {
 	}
 	defer s.Close()
 	switch command {
-	case "password-reset":
-		p, e := readPassword(*stdin, *passwordFile)
-		if e != nil {
-			return e
-		}
-		return s.ResetPassword(p)
-	case "sessions":
-		if action == "revoke" {
-			if len(*id) != 64 {
-				return errors.New("--id must be the full session ID from sessions list")
-			}
-			result, e := s.DB.Exec("DELETE FROM sessions WHERE hash=?", *id)
-			if e != nil {
-				return e
-			}
-			n, _ := result.RowsAffected()
-			if n != 1 {
-				return errors.New("session not found")
-			}
-			return nil
-		}
-		if action != "list" {
-			return errors.New("unknown sessions action")
-		}
-		rows, e := s.DB.Query("SELECT hash,created,expires FROM sessions ORDER BY created")
-		if e != nil {
-			return e
-		}
-		defer rows.Close()
-		sessions := []map[string]any{}
-		for rows.Next() {
-			var id string
-			var created, expires int64
-			if e = rows.Scan(&id, &created, &expires); e != nil {
-				return e
-			}
-			sessions = append(sessions, map[string]any{"id": id, "created": created, "expires": expires})
-		}
-		if e = rows.Err(); e != nil {
-			return e
-		}
-		return output(sessions)
 	case "serve":
 		if _, e = s.Account(); e != nil {
 			return errors.New("initialize an owner account first")

@@ -1,6 +1,10 @@
 package syncserver
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -392,5 +396,152 @@ func TestCoOwnerCanDeleteRemoteVault(t *testing.T) {
 	vs, e := f.s.VaultsFor(1)
 	if e != nil || len(vs) != 0 {
 		t.Fatal("delete did not apply to all", e)
+	}
+}
+
+func TestLiveAccountChangesCancelUploads(t *testing.T) {
+	for _, action := range []string{"users.disable", "users.password-reset", "users.quota"} {
+		t.Run(action, func(t *testing.T) {
+			t.Setenv("TMPDIR", "/tmp")
+			f := setup(t)
+			c := dial(t, f, 0, true)
+			defer c.CloseNow()
+			ready(t, c)
+			send(t, c, map[string]any{"op": "push", "path": "interrupted", "hash": "pending", "size": Chunk + 1, "pieces": 2})
+			if response(t, c)["res"] != "upload" {
+				t.Fatal("upload denied")
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			if e := c.Write(ctx, websocket.MessageBinary, make([]byte, Chunk)); e != nil {
+				t.Fatal(e)
+			}
+			if response(t, c)["res"] != "ok" {
+				t.Fatal("missing piece ack")
+			}
+			stop, e := f.server.StartControl()
+			if e != nil {
+				t.Fatal(e)
+			}
+			defer stop()
+			if _, e = Admin(f.s.Config, AdminRequest{Action: action, User: 1, Password: "a replacement password", File: 1}); e != nil {
+				t.Fatal(e)
+			}
+			if action == "users.quota" {
+				if e = c.Write(ctx, websocket.MessageBinary, []byte{0}); e != nil {
+					t.Fatal(e)
+				}
+				if response(t, c)["res"] != "err" {
+					t.Fatal("new file limit ignored at commit")
+				}
+			} else {
+				if f.s.Authorize(f.token) == nil {
+					t.Fatal("old session survived administrative change")
+				}
+				if _, _, e = c.Read(ctx); e == nil {
+					t.Fatal("active upload survived administrative change")
+				}
+			}
+			var count int
+			if e = f.s.DB.QueryRow("SELECT COUNT(*) FROM revisions").Scan(&count); e != nil || count != 0 {
+				t.Fatal("unfinished upload became visible", e)
+			}
+			if action == "users.password-reset" {
+				if _, e = f.s.SignIn("owner@local.invalid", "a replacement password"); e != nil {
+					t.Fatal(e)
+				}
+			}
+		})
+	}
+}
+
+func TestLegacyArchiveAndUnsafeSnapshots(t *testing.T) {
+	f := setup(t)
+	c := dial(t, f, 0, true)
+	ready(t, c)
+	uploadBytes(t, c, "archived", "opaque", []byte("retained ciphertext"))
+	c.CloseNow()
+	f.http.Close()
+	f.server.Close()
+	f.s.Close()
+	root := t.TempDir()
+	snap := filepath.Join(root, "snapshot")
+	if e := BackupFormat(f.config, snap, "directory"); e != nil {
+		t.Fatal(e)
+	}
+	// The original tar format has no checksum manifest and configuration first.
+	var buffer bytes.Buffer
+	gz := gzip.NewWriter(&buffer)
+	tw := tar.NewWriter(gz)
+	names, e := snapshotFiles(snap)
+	if e != nil {
+		t.Fatal(e)
+	}
+	ordered := []string{"config.json"}
+	for _, n := range names {
+		if n != "config.json" && n != "manifest.json" {
+			ordered = append(ordered, n)
+		}
+	}
+	for _, n := range ordered {
+		b, e := os.ReadFile(filepath.Join(snap, n))
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = tw.WriteHeader(&tar.Header{Name: n, Mode: 0600, Size: int64(len(b)), Typeflag: tar.TypeReg}); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = tw.Write(b); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if e = tw.Close(); e != nil {
+		t.Fatal(e)
+	}
+	if e = gz.Close(); e != nil {
+		t.Fatal(e)
+	}
+	archive := filepath.Join(root, "legacy.tar.gz")
+	if e = os.WriteFile(archive, buffer.Bytes(), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = Restore(archive, filepath.Join(root, "legacy.json"), filepath.Join(root, "legacy")); e != nil {
+		t.Fatal("legacy archive rejected", e)
+	}
+	for _, unsafe := range []string{"../escaped", "/absolute", "blobs/../../escaped"} {
+		t.Run(unsafe, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "bad.zip")
+			out, e := os.Create(file)
+			if e != nil {
+				t.Fatal(e)
+			}
+			zw := zip.NewWriter(out)
+			b, _ := os.ReadFile(filepath.Join(snap, "config.json"))
+			w, _ := zw.Create("config.json")
+			w.Write(b)
+			w, _ = zw.Create(unsafe)
+			w.Write([]byte("bad"))
+			zw.Close()
+			out.Close()
+			if e = RestoreSource(file, "", filepath.Join(root, "bad.json"), filepath.Join(root, "bad")); e == nil {
+				t.Fatal("unsafe ZIP entry accepted")
+			}
+		})
+	}
+	var missing string
+	filepath.WalkDir(filepath.Join(snap, "blobs"), func(p string, d os.DirEntry, e error) error {
+		if e == nil && !d.IsDir() {
+			missing = p
+		}
+		return e
+	})
+	if missing == "" {
+		t.Fatal("fixture blob missing")
+	}
+	if e = os.Remove(missing); e != nil {
+		t.Fatal(e)
+	}
+	if e = RestoreSource("", snap, filepath.Join(root, "missing.json"), filepath.Join(root, "missing")); e == nil {
+		t.Fatal("snapshot with missing blob accepted")
 	}
 }

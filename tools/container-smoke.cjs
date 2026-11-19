@@ -197,7 +197,7 @@ async function pull(base, token, vault, uid, expected) {
       "--wait-timeout",
       "90",
     ]);
-    const base = address(prefix);
+    let base = address(prefix);
     await waitReady(base);
     const id = compose(prefix, ["ps", "--quiet", "vault-sync"]).stdout.trim();
     const container = JSON.parse(docker(["inspect", id]).stdout)[0];
@@ -298,6 +298,8 @@ async function pull(base, token, vault, uid, expected) {
       "docker exec administers live users/co-ownership over the private Unix socket",
     );
     compose(prefix, ["restart", "vault-sync"]);
+    // Docker can reallocate an ephemeral published port when restarting.
+    base = address(prefix);
     await waitReady(base);
     await post(base, "/user/info", { token: account.token });
     await pull(base, account.token, vault, uid, ciphertext);
@@ -437,6 +439,9 @@ async function pull(base, token, vault, uid, expected) {
     );
 
     console.log(JSON.stringify({ status: "passed", image, checks }, null, 2));
+  } catch (error) {
+    console.error(compose(prefix, ["logs", "--no-color", "--tail", "50"], { allowedFailure: true }).stdout);
+    throw error;
   } finally {
     docker(["rm", "--force", backupContainer, plainContainer], {
       allowedFailure: true,
