@@ -389,6 +389,9 @@ func TestCoOwnerCanDeleteRemoteVault(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	if _, e = f.s.DB.Exec("INSERT INTO blobs(vault,hash,size) VALUES(?,?,?)", f.vault.ID, strings.Repeat("b", 64), 101); e != nil {
+		t.Fatal(e)
+	}
 	got := f.post(t, "/vault/delete", map[string]any{"token": token, "vault_uid": f.vault.ID}, 200)
 	if got["res"] != "ok" {
 		t.Fatal(got)
@@ -396,6 +399,15 @@ func TestCoOwnerCanDeleteRemoteVault(t *testing.T) {
 	vs, e := f.s.VaultsFor(1)
 	if e != nil || len(vs) != 0 {
 		t.Fatal("delete did not apply to all", e)
+	}
+	if n, e := f.s.Usage(u.ID); e != nil || n != 50 {
+		t.Fatal("deletion reclaimed retained history", n, e)
+	}
+	if e = f.s.SetMember(f.vault.ID, u.ID, false); e != nil {
+		t.Fatal("cannot revoke retained deleted-vault ownership", e)
+	}
+	if n, e := f.s.Usage(1); e != nil || n != 101 {
+		t.Fatal("deleted-vault charge was not redistributed", n, e)
 	}
 }
 
@@ -543,5 +555,29 @@ func TestLegacyArchiveAndUnsafeSnapshots(t *testing.T) {
 	}
 	if e = RestoreSource("", snap, filepath.Join(root, "missing.json"), filepath.Join(root, "missing")); e == nil {
 		t.Fatal("snapshot with missing blob accepted")
+	}
+}
+
+func TestMissingRevisionBlobReferenceFailsRecovery(t *testing.T) {
+	f := setup(t)
+	c := dial(t, f, 0, true)
+	ready(t, c)
+	uploadBytes(t, c, "opaque-reference", "opaque-reference-hash", []byte("opaque ciphertext"))
+	c.CloseNow()
+	r, e := f.s.Record(f.vault.ID, 1)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = f.s.DB.Exec("DELETE FROM blobs WHERE vault=?", f.vault.ID); e != nil {
+		t.Fatal(e)
+	}
+	if e = f.s.CheckBlobs(true); e == nil {
+		t.Fatal("missing revision blob index accepted")
+	}
+	if e = f.s.Recover(); e == nil {
+		t.Fatal("recovery accepted inconsistent revision")
+	}
+	if _, e = os.Stat(f.s.BlobPath(f.vault.ID, r.Blob)); e != nil {
+		t.Fatal("recovery removed acknowledged ciphertext", e)
 	}
 }

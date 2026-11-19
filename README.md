@@ -36,6 +36,7 @@ Server/plugin **0.2.0** add multiple users, CLI-managed co-owned vaults with equ
 - [Multi-user accounts, sharing and migration](docs/MULTIUSER.md)
 - [ZIP, directory and restic backups](docs/BACKUPS.md)
 - [Security model and internet deployment](docs/SECURITY.md)
+- [0.2.0 security review and validation](docs/SECURITY-REVIEW-0.2.0.md)
 
 The plugin is **not yet published or approved in the community directory**. A release ZIP cannot be installed by pasting its URL into Obsidian's normal plugin browser. Installation through **Settings → Community plugins → Browse** requires directory publication. The repository and submission instructions are in `docs/PUBLISHING.md`.
 

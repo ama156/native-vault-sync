@@ -11,6 +11,14 @@ import (
 )
 
 func (s *Store) CheckBlobs(verifyHash bool) error {
+	// Refuse inconsistent references before recovery can remove unindexed files.
+	var broken int
+	if e := s.DB.QueryRow(`SELECT COUNT(*) FROM revisions r LEFT JOIN blobs b ON b.vault=r.vault AND b.hash=r.blob WHERE r.size<0 OR (r.blob<>'' AND (b.hash IS NULL OR b.size<>r.size)) OR (r.size>0 AND r.blob='')`).Scan(&broken); e != nil {
+		return e
+	}
+	if broken != 0 {
+		return errors.New("invalid revision ciphertext reference")
+	}
 	rows, e := s.DB.Query("SELECT vault,hash,size FROM blobs")
 	if e != nil {
 		return e

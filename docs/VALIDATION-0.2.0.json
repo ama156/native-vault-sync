@@ -1,0 +1,75 @@
+{
+  "version": "0.2.0",
+  "date": "2026-11-19",
+  "status": "passed in the scopes listed; deployment/device qualification limits remain",
+  "local": {
+    "go": "go test -race ./... and go vet ./... passed",
+    "plugin": {
+      "passed": 27,
+      "adaptersChanged": false
+    },
+    "backupWrapper": {
+      "passed": 3,
+      "mode": "mocked service lifecycle, real shell wrapper"
+    },
+    "nativeDesktop": {
+      "passed": 18,
+      "report": "native-multiuser-0.2.0.json",
+      "mode": "copied 1.8.7 transport/encryption in isolated runtime"
+    },
+    "nativeIOS": {
+      "passed": 13,
+      "report": "ios-multiuser-0.2.0.json",
+      "mode": "privately supplied 1.15.1 engine/filter/crypto/transport and synthetic adapters"
+    },
+    "restic": {
+      "version": "0.19.1",
+      "report": "restic-acceptance-0.2.0.json",
+      "mode": "actual disposable local repository"
+    },
+    "crashRecovery": {
+      "passed": 5,
+      "report": "crash-recovery-0.2.0.json",
+      "mode": "separate disposable subprocesses, SIGKILL and fresh restoration"
+    }
+  },
+  "linuxAcceptance": {
+    "result": "passed",
+    "run": "https://github.com/ama156/native-vault-sync/actions/runs/44517070210",
+    "commit": "74390271134fd60cf6942fc2e728bddbf55d1043",
+    "checks": [
+      "Go race tests and vet",
+      "Plugin tests and backup-wrapper tests",
+      "Actual restic round trip",
+      "Nginx HTTPS template, trusted disposable certificate and iOS-Origin multipart WebSocket transfer",
+      "Oversized HTTP/invalid Origin rejection and forwarding-header spoof resistance",
+      "Unprivileged Docker/Compose startup, named-volume permissions, read-only root and health check",
+      "Live Unix administration, co-owned ciphertext, session/revision persistence across container restart",
+      "Exclusive offline backup, real ENOSPC on bounded backup tmpfs, fresh Compose restore and plain Docker serving",
+      "Linux amd64 container runtime and arm64 OCI cross-build",
+      "Linux amd64/arm64 binary release build"
+    ]
+  },
+  "followUpChecks": [
+    "Deleted-vault retained storage and revocation regression passed locally",
+    "Missing revision-to-blob references fail startup/recovery without deleting acknowledged ciphertext",
+    "Current/legacy archive and checksum validation passed after integrity changes"
+  ],
+  "dependencyReview": {
+    "goToolchain": "1.27.4",
+    "govulncheck": "v1.10.0; no vulnerabilities at symbol/package/required-module scope",
+    "npmAudit": {
+      "productionAndDevelopment": true,
+      "totalFindings": 0
+    },
+    "cryptoModule": "golang.org/x/crypto v0.59.0"
+  },
+  "limits": [
+    "Linux acceptance run identifies the tested implementation checkpoint; subsequent release commits rerun the same workflow.",
+    "Main Obsidian application, profile and real vaults were not launched or modified.",
+    "No fresh full application or real iPhone qualification was performed for this server release; prior device reports remain historical.",
+    "Android remains diagnostic; Windows is not independently qualified.",
+    "Arm64 binaries/images were cross-built, not run on ARM hardware.",
+    "No public production deployment, independent penetration test, registry image publication, HA or community-directory submission."
+  ]
+}

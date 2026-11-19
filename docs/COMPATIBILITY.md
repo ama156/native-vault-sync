@@ -1,5 +1,7 @@
 # Compatibility evidence and boundaries
 
+**0.2.0:** the platform adapters remain unchanged. New multi-user server checks and their scope are recorded in the [security/validation review](SECURITY-REVIEW-0.2.0.md), [desktop transport report](native-multiuser-0.2.0.json) and [iOS co-owner report](ios-multiuser-0.2.0.json). Older full-app results below remain historical evidence, not newly repeated installer/device qualification.
+
 Automated tests use separately copied/downloaded resources, disposable profiles, synthetic notes, and a loopback server. The installed app is not patched. No proprietary client bundle or sandbox profile is shipped.
 
 ## Client builds

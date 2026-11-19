@@ -258,7 +258,17 @@ func (s *Store) Usage(user int) (int64, error) {
 func (s *Store) SetMember(vault string, user int, add bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, e := s.Vault(vault); e != nil {
+	// Deleted vaults retain ciphertext and ownership charges. Administrators
+	// must still be able to revoke membership and redistribute those charges.
+	var exists int
+	query := "SELECT COUNT(*) FROM vaults WHERE id=?"
+	if add {
+		query += " AND deleted=0"
+	}
+	if e := s.DB.QueryRow(query, vault).Scan(&exists); e != nil {
+		return e
+	}
+	if exists != 1 {
 		return errors.New("Vault not found")
 	}
 	u, e := s.User(user)
