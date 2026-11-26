@@ -20,7 +20,14 @@ module.exports = class VaultSyncBridge extends DirectSyncBridge {
       await this.loadData(),
     );
     this.canUseMacDirect = Platform.isMacOS && apiVersion === "1.15.1";
-    this.macDirect = this.canUseMacDirect && this.settings.macDirectMode === true;
+    const { macDirectMode, accountBinding, macDirect } = this.settings;
+    const nativeVaultId =
+      this.app.internalPlugins?.getPluginById("sync")?.instance?.vaultId;
+    const existingDesktopSetup =
+      accountBinding || (nativeVaultId && nativeVaultId !== macDirect?.vaultId);
+    this.macDirect = this.canUseMacDirect &&
+      (macDirectMode === true ||
+        (macDirectMode === undefined && !this.settings.enabled && !existingDesktopSetup));
     if (this.macDirect) {
       if (this.settings.enabled) {
         new Notice("Disable desktop routing before using Direct Sync.");
@@ -301,7 +308,7 @@ class BridgeSettings extends PluginSettingTab {
                 new Notice("Disable desktop routing first.");
                 return;
               }
-              plugin.settings.macDirectMode = !plugin.settings.macDirectMode;
+              plugin.settings.macDirectMode = plugin.settings.macDirectMode === true ? false : true;
               await plugin.saveData(plugin.settings);
               this.display();
               if (plugin.settings.macDirectMode)

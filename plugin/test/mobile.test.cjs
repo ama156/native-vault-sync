@@ -530,9 +530,12 @@ test("desktop renderer and main-process entry points retain their original branc
   assert.equal(module.exports, marker);
 });
 
-test("Mac 1.15.1 opts into the shared Direct Sync screen without loading Electron or Node", async () => {
-  for (const [version, platform, expected] of [
-    ["1.15.1", { isMacOS: true }, true],
+test("Mac 1.15.1 defaults to the shared Direct Sync screen without loading Electron or Node", async () => {
+  for (const [version, platform, expected, settings] of [
+    ["1.15.1", { isMacOS: true }, true, {}],
+    ["1.15.1", { isMacOS: true }, false, { macDirectMode: false }],
+    ["1.15.1", { isMacOS: true }, false, { accountBinding: "https://existing.example.test" }],
+    ["1.15.1", { isMacOS: true }, true, { macDirectMode: true }],
     ["1.8.7", { isMacOS: true }, false],
     ["1.15.1", { isWin: true }, false],
   ]) {
@@ -551,7 +554,7 @@ test("Mac 1.15.1 opts into the shared Direct Sync screen without loading Electro
     vm.runInContext(bundled, context);
     const plugin = new module.exports({ workspace: { onLayoutReady() {} } });
     plugin.loadData = async () => ({
-      macDirectMode: true,
+      ...settings,
       macDirect: { server: "https://mac.example.test" },
       iosTest: { server: "https://phone.example.test", enabled: true },
     });

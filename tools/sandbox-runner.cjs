@@ -51,7 +51,7 @@ if (!fs.existsSync(path.join(plugin, "data.json")))
   fs.writeFileSync(
     path.join(plugin, "data.json"),
     JSON.stringify(process.env.SYNC_TEST_MAC_DIRECT === "1"
-      ? { macDirectMode: true, macDirect: { server } }
+      ? { macDirect: { server } }
       : { server, enabled: true, accountBinding: server }),
     { mode: 0o600 },
   );

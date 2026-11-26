@@ -6,7 +6,7 @@ Direct mode sends HTTPS account requests to the configured origin and opens a di
 
 | | Original Mac adapter | Mac Direct Sync |
 | --- | --- | --- |
-| Availability | Default on supported desktop builds | Opt-in on macOS with Obsidian 1.15.1 |
+| Availability | Existing routed setups and other supported desktop builds | Default for fresh setups on macOS with Obsidian 1.15.1 |
 | Login and vault selection | Native Obsidian settings | Bridge settings shared with iPhone |
 | Network path | Electron account routing and embedded local relay | Direct HTTPS and WebSocket |
 | Existing Mac connection | Keep this mode for your configured vault | Clean profile and unconnected local vault required |
@@ -17,10 +17,10 @@ The published [0.2.0 release](https://github.com/ama156/native-vault-sync/releas
 
 1. Use a disposable Mac profile with Obsidian **1.15.1**, a fresh native account state, and an unconnected test vault. Enable the native Sync core plugin. If needed, create an encrypted remote **test vault** using the original desktop adapter in a separate profile.
 2. Put `main.js` and `manifest.json` in the test vault's `.obsidian/plugins/vault-sync-bridge/` directory and enable **Vault Sync Bridge**.
-3. In **Settings → Vault Sync Bridge**, choose **Use Direct Sync after restart**, then restart the disposable instance.
+3. In **Settings → Vault Sync Bridge**, open the Direct Sync settings.
 4. Enter your HTTPS server origin and sign in in bridge settings. Select the remote test vault and use **Unlock and connect**. If the app previously saved an empty signed-out account record, use **Prepare empty account record** in the same disposable profile and restart.
 
-The original desktop adapter is the default. Direct mode is offered on Mac 1.15.1. It refuses existing native account sessions and vaults already connected through another adapter. Moving an existing Mac setup to Direct Sync requires a separate migration workflow. Use **Sign out / disable** in bridge settings to stop Direct Sync on the test vault. The Mac and iPhone settings are saved separately so a vault's synced plugin settings cannot activate one mode on the other platform.
+Direct Sync is the default for fresh Mac 1.15.1 setups. Existing routed setups and explicit selections keep their current adapter. To opt back into desktop routing, sign out in bridge settings, choose **Use desktop routing after restart**, then restart. It refuses existing native account sessions and vaults already connected through another adapter. Moving an existing Mac setup to Direct Sync requires a separate migration workflow. Use **Sign out / disable** in bridge settings to stop Direct Sync on the test vault. The Mac and iPhone settings are saved separately so a vault's synced plugin settings cannot activate one mode on the other platform.
 
 ## Development verification
 

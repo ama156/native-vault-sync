@@ -1,6 +1,6 @@
 # Vault Sync Bridge 0.1.3: iPhone and desktop implementation
 
-The development branch also offers [Mac Direct Sync](MAC-DIRECT.md) on Obsidian 1.15.1. The original desktop adapter documented below remains the default, including for the released 0.2.0 assets.
+The development branch also offers [Mac Direct Sync](MAC-DIRECT.md) on Obsidian 1.15.1. Direct Sync is the default for fresh Mac 1.15.1 setups on the development branch. Existing routed setups and the released 0.2.0 assets use the original adapter documented below.
 
 **Server/plugin 0.2.0 update:** the platform adapters described below are unchanged. Server 0.2.0 adds multiple users and administrator-managed co-ownership; see [migration and account operations](MULTIUSER.md). The [iOS source-harness result](ios-multiuser-0.2.0.json) verifies encrypted co-owner transfers against the new server. This is not a new on-device qualification. Use the [0.2.0 test release](https://github.com/ama156/native-vault-sync/releases/tag/0.2.0) for current assets; retain your existing bridge settings and session when updating.
 
