@@ -4,9 +4,10 @@ const { IOS_1151, fingerprint } = require("./ios-account.cjs");
 function installDirectConnection(native, session, expected = IOS_1151) {
   const descriptor = Object.getOwnPropertyDescriptor(native, "server");
   if (!descriptor?.configurable || !Object.hasOwn(descriptor, "value"))
-    throw Error("Unqualified iOS transport property.");
+    throw Error("Unsupported native transport property.");
   let current = descriptor.value;
   const methods = new Map();
+  let restored = false;
   function restoreMethod(transport) {
     const saved = methods.get(transport);
     if (!saved) return;
@@ -34,8 +35,9 @@ function installDirectConnection(native, session, expected = IOS_1151) {
       onPush,
     ) {
       if ((await fingerprint(this.constructor)) !== expected.transportClass)
-        throw Error("Unqualified iOS transport implementation.");
+        throw Error("Unsupported native transport implementation.");
       if (this.hasConnection()) return;
+      const transport = this;
       const provider = this.encryptionProvider;
       // Preflight exact native encryption identity before sending a socket init.
       await session.call("/vault/access", {
@@ -44,10 +46,12 @@ function installDirectConnection(native, session, expected = IOS_1151) {
         encryption_version: provider.encryptionVersion,
         host: new URL(session.server).host + "/sync",
       });
+      if (restored || current !== transport)
+        throw Error("Direct Sync connection cancelled.");
+      if (this.hasConnection()) return;
       const token = session.token();
       this.onReady = onReady;
       this.onPush = onPush;
-      const transport = this;
       await new Promise((resolve, reject) => {
         let accepted = false,
           settled = false;
@@ -161,7 +165,6 @@ function installDirectConnection(native, session, expected = IOS_1151) {
     Object.defineProperty(native, "server", descriptor);
     throw error;
   }
-  let restored = false;
   return () => {
     if (restored) return;
     restored = true;

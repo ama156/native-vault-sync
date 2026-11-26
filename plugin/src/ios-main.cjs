@@ -7,25 +7,30 @@ const {
   prepareEmptyNativeAccount,
 } = require("./ios-controller.cjs");
 
-module.exports = class VaultSyncBridgeIOS extends Diagnostics {
+module.exports = class DirectSyncBridge extends Diagnostics {
   async onload() {
+    await this.loadDirect();
+  }
+  async loadDirect(key = "iosTest", profile, request = requestUrl) {
     this.loaded = true;
     this.busy = false;
     this.vaults = [];
+    this.directKey = key;
     this.persisted = (await this.loadData().catch(() => ({}))) || {};
     // Never inherit the desktop's enabled/server flags from a synced data.json.
-    this.ios = Object.assign(
+    this.direct = Object.assign(
       { server: "", enabled: false, vaultId: "" },
-      this.persisted.iosTest,
+      this.persisted[key],
     );
     this.controller = new IOSController(
       this.app,
-      this.ios,
-      requestUrl,
-      () => this.saveData({ ...this.persisted, iosTest: this.ios }),
+      this.direct,
+      request,
+      () => this.saveData({ ...this.persisted, [key]: this.direct }),
       () => {
         this.state = this.controller.state;
       },
+      profile,
     );
     await super.onload();
     this.state = this.controller.state;
@@ -37,13 +42,13 @@ module.exports = class VaultSyncBridgeIOS extends Diagnostics {
       if (!document.hidden) this.controller.foreground();
     }, 60000);
     this.app.workspace.onLayoutReady(() => {
-      if (this.loaded && this.ios.enabled)
+      if (this.loaded && this.direct.enabled)
         this.run(() => this.controller.establish("", "", true));
     });
   }
   createSettingsTab() {
-    this.iosTab = new IOSSettings(this.app, this);
-    return this.iosTab;
+    this.directTab = new DirectSettings(this.app, this);
+    return this.directTab;
   }
   async run(action) {
     if (this.busy || !this.loaded) return;
@@ -54,8 +59,8 @@ module.exports = class VaultSyncBridgeIOS extends Diagnostics {
       if (this.loaded) new Notice(error.message || "Bridge operation failed.");
     } finally {
       this.busy = false;
-      if (this.loaded && this.iosTab?.containerEl?.isShown?.())
-        this.iosTab.display();
+      if (this.loaded && this.directTab?.containerEl?.isShown?.())
+        this.directTab.display();
     }
   }
   async onunload() {
@@ -65,7 +70,7 @@ module.exports = class VaultSyncBridgeIOS extends Diagnostics {
   }
 };
 
-class IOSSettings extends PluginSettingTab {
+class DirectSettings extends PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -75,7 +80,7 @@ class IOSSettings extends PluginSettingTab {
       c = p.controller;
     this.containerEl.empty();
     this.containerEl.createEl("p", {
-      text: "Experimental iOS 1.15.1 native Sync adapter. Note sync/restart is user-confirmed; attachment behavior remains under device qualification. Use a clean account environment and an unconnected disposable local vault. Existing accounts and connections are refused.",
+      text: "Direct Sync test mode for Obsidian 1.15.1. Use a clean profile and a disposable local vault. Choose an existing encrypted remote test vault.",
     });
     this.containerEl.createEl("p", { text: c.state });
     new Setting(this.containerEl)
@@ -84,13 +89,13 @@ class IOSSettings extends PluginSettingTab {
       .addText((input) =>
         input
           .setPlaceholder("https://sync.example.com")
-          .setValue(p.ios.server)
+          .setValue(p.direct.server)
           .onChange((value) => {
             if (c.session || p.busy) {
-              input.setValue(p.ios.server);
+              input.setValue(p.direct.server);
               return;
             }
-            p.ios.server = value.trim();
+            p.direct.server = value.trim();
           }),
       );
     new Setting(this.containerEl)
@@ -99,7 +104,7 @@ class IOSSettings extends PluginSettingTab {
         button.setButtonText("Test server").onClick(() =>
           p.run(async () => {
             await c.testServer();
-            new Notice("Custom server is ready for the iOS test.");
+            new Notice("Custom server is ready.");
           }),
         ),
       );
@@ -156,7 +161,7 @@ class IOSSettings extends PluginSettingTab {
       new Setting(this.containerEl)
         .setName("Remote vaults")
         .setDesc(
-          "Create the remote vault on desktop first. The iOS test connects to an existing end-to-end encrypted vault.",
+          "Select an existing end-to-end encrypted remote vault. Create test vaults using the original desktop adapter in a separate profile.",
         )
         .addButton((button) =>
           button.setButtonText("Refresh vault list").onClick(() =>
@@ -255,6 +260,7 @@ class IOSSettings extends PluginSettingTab {
         });
       }
     }
+    if (p.directKey === "macDirect") p.addReturnToDesktopSetting(this.containerEl);
     new Setting(this.containerEl)
       .setName("Saved signed-out test profile")
       .setDesc(
@@ -281,7 +287,7 @@ class IOSSettings extends PluginSettingTab {
           .onClick(() => p.inspect()),
       );
     this.containerEl.createEl("p", {
-      text: "Use bridge settings for account/vault setup. Native account operations that try to serialize the local session handle are blocked before network transmission. Disabling the bridge pauses this custom connection and keeps local notes and native history/index state. No background-sync guarantee or Android qualification.",
+      text: "Use bridge settings for account/vault setup. Native account operations that try to serialize the local session handle are blocked before network transmission. Disabling the bridge pauses this custom connection and keeps local notes and native history/index state.",
     });
   }
 }

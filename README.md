@@ -21,6 +21,7 @@ Enter the custom-account password when prompted. The published host port is loop
 
 ## Technical documentation
 
+- [Mac Direct Sync test mode](docs/MAC-DIRECT.md): shared iPhone-style setup, supported builds, and how to keep using the original desktop adapter.
 - [Docker deployment](docs/DOCKER.md): Docker CLI and Compose options, volumes, networking, upgrades and offline restore.
 - [iPhone and desktop implementation](docs/PLATFORM-ADAPTERS.md): why native account screens show the custom session, platform-specific login/routing, token storage, WebSockets and lifecycle.
 - [Technical deep dive](docs/TECHNICAL-DEEP-DIVE.md): reverse-engineered client layers, permissions, account routing, encryption, native scheduling, durable storage, replay and failure boundaries.

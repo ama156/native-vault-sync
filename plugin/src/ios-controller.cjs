@@ -11,17 +11,18 @@ const { installDirectConnection } = require("./ios-connection.cjs");
 const { FILE_TYPES, fileTypeReport } = require("./native-file-types.cjs");
 
 class IOSController {
-  constructor(app, settings, request, save, changed = () => {}) {
+  constructor(app, settings, request, save, changed = () => {}, expected = IOS_1151) {
     this.app = app;
     this.settings = settings;
     this.request = request;
     this.save = save;
     this.changed = changed;
+    this.expected = expected;
     this.session = null;
     this.native = null;
     this.restoreAccount = null;
     this.restoreConnection = null;
-    this.state = "Experimental iOS adapter inactive";
+    this.state = "Direct Sync inactive";
     this.generation = 0;
   }
   status(text) {
@@ -51,7 +52,7 @@ class IOSController {
     const parts = String(data.version).split(".").map(Number);
     if (!(parts[0] > 0 || parts[1] > 1 || (parts[1] === 1 && parts[2] >= 2)))
       throw Error(
-        "Install server 0.1.2 or newer for the exact iOS Origin support.",
+        "Install server 0.1.2 or newer for direct Sync.",
       );
     return origin;
   }
@@ -77,8 +78,8 @@ class IOSController {
       throw Error(
         "This vault already has another native Sync connection. Use an unconnected disposable vault; it was not changed.",
       );
-    if ((await fingerprint(native.setup)) !== IOS_1151.setup)
-      throw Error("Unqualified iOS vault setup implementation.");
+    if ((await fingerprint(native.setup)) !== this.expected.setup)
+      throw Error("Unsupported native vault setup for this build.");
     return native;
   }
   async establish(email, password, resume = false) {
@@ -96,7 +97,7 @@ class IOSController {
     const native = await this.getNative();
     current();
     // Probe before sending credentials: existing native accounts are refused.
-    const account = await captureFreshAccount(native);
+    const account = await captureFreshAccount(native, this.expected);
     current();
     const secrets = this.app.secretStorage;
     if (
@@ -135,7 +136,7 @@ class IOSController {
       this.native = native;
       this.session = session;
       this.restoreAccount = bindAccount(account, session);
-      this.restoreConnection = installDirectConnection(native, session);
+      this.restoreConnection = installDirectConnection(native, session, this.expected);
       this.settings.enabled = true;
       await this.save();
       current();
@@ -164,7 +165,7 @@ class IOSController {
   fileTypes() {
     return fileTypeReport(this.native);
   }
-  async setFileType(type, enabled, expected = IOS_1151.setSyncType) {
+  async setFileType(type, enabled, expected = this.expected.setSyncType) {
     if (
       !FILE_TYPES.some((entry) => entry.id === type) ||
       typeof enabled !== "boolean"
@@ -311,7 +312,7 @@ class IOSController {
       this.settings.enabled = false;
       await this.save();
     }
-    this.status("Experimental iOS adapter inactive");
+    this.status("Direct Sync inactive");
   }
 }
 

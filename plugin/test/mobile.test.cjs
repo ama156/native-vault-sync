@@ -407,7 +407,7 @@ test("one bundled plugin loads on iOS/Android without process, Buffer, Node, Ele
     assert.equal(
       plugin.state,
       platform.isIosApp
-        ? "Experimental iOS adapter inactive"
+        ? "Direct Sync inactive"
         : "Mobile diagnostics only — custom Sync is inactive",
     );
     assert.equal(state.tabs.length, 1);
@@ -528,4 +528,41 @@ test("desktop renderer and main-process entry points retain their original branc
     },
   });
   assert.equal(module.exports, marker);
+});
+
+test("Mac 1.15.1 opts into the shared Direct Sync screen without loading Electron or Node", async () => {
+  for (const [version, platform, expected] of [
+    ["1.15.1", { isMacOS: true }, true],
+    ["1.8.7", { isMacOS: true }, false],
+    ["1.15.1", { isWin: true }, false],
+  ]) {
+    const { state, exports: obsidian } = sdk({ isDesktopApp: true, ...platform });
+    obsidian.apiVersion = version;
+    const module = { exports: {} };
+    const context = vm.createContext({
+      module,
+      require(name) {
+        assert.equal(name, "obsidian");
+        return obsidian;
+      },
+      document: { hidden: false },
+      window: { setInterval: () => 1, clearInterval() {} },
+    });
+    vm.runInContext(bundled, context);
+    const plugin = new module.exports({ workspace: { onLayoutReady() {} } });
+    plugin.loadData = async () => ({
+      macDirectMode: true,
+      macDirect: { server: "https://mac.example.test" },
+      iosTest: { server: "https://phone.example.test", enabled: true },
+    });
+    await plugin.onload();
+    assert.equal(Boolean(plugin.controller), expected);
+    if (expected) {
+      assert.equal(plugin.direct.server, "https://mac.example.test");
+      assert.equal(plugin.direct.enabled, false);
+      state.tabs[0].display();
+      assert.ok(state.buttons.some((b) => b.text === "Sign in to custom server"));
+    }
+    await plugin.onunload();
+  }
 });

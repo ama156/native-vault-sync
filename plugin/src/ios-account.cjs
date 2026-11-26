@@ -26,7 +26,7 @@ async function captureFreshAccount(native, expected = IOS_1151) {
   const acquire = native?.asyncGetServer;
   if ((await fingerprint(acquire)) !== expected.asyncGetServer)
     throw Error(
-      "Unqualified iOS native connection method. Sync remains inactive.",
+      "Unqualified native connection method. Sync remains inactive.",
     );
   const prototype = Object.prototype;
   if (!Object.isExtensible(prototype) || Object.hasOwn(prototype, "token"))

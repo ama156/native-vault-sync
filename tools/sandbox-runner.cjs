@@ -50,7 +50,9 @@ for (const f of ["main.js", "manifest.json"])
 if (!fs.existsSync(path.join(plugin, "data.json")))
   fs.writeFileSync(
     path.join(plugin, "data.json"),
-    JSON.stringify({ server, enabled: true, accountBinding: server }),
+    JSON.stringify(process.env.SYNC_TEST_MAC_DIRECT === "1"
+      ? { macDirectMode: true, macDirect: { server } }
+      : { server, enabled: true, accountBinding: server }),
     { mode: 0o600 },
   );
 fs.writeFileSync(

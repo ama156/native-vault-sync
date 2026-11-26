@@ -1,22 +1,35 @@
 "use strict";
 const {
-  Plugin,
+  Platform,
   PluginSettingTab,
   Setting,
   Notice,
   apiVersion,
 } = require("obsidian");
-const { Relay, validateServer } = require("./relay.cjs");
-const path = require("node:path");
+const { validateServer } = require("./server-address.cjs");
 const { installBootstrap } = require("./connection-bootstrap.cjs");
 const { DESKTOP_VERSIONS: SUPPORTED } = require("./compatibility.cjs");
 
-module.exports = class VaultSyncBridge extends Plugin {
+const DirectSyncBridge = require("./ios-main.cjs");
+const { MAC_1151, macDirectRequest } = require("./mac-direct.cjs");
+
+module.exports = class VaultSyncBridge extends DirectSyncBridge {
   async onload() {
     this.settings = Object.assign(
       { server: "", enabled: false, accountBinding: "" },
       await this.loadData(),
     );
+    this.canUseMacDirect = Platform.isMacOS && apiVersion === "1.15.1";
+    this.macDirect = this.canUseMacDirect && this.settings.macDirectMode === true;
+    if (this.macDirect) {
+      if (this.settings.enabled) {
+        new Notice("Disable desktop routing before using Direct Sync.");
+        this.macDirect = false;
+      } else {
+        await this.loadDirect("macDirect", MAC_1151, macDirectRequest);
+        return;
+      }
+    }
     this.events = [];
     this.state = "Inactive";
     this.addSettingTab(new BridgeSettings(this.app, this));
@@ -75,6 +88,8 @@ module.exports = class VaultSyncBridge extends Plugin {
     return origin;
   }
   async activate() {
+    const { Relay } = require("./relay.cjs");
+    const path = require("node:path");
     if (this.relay && this.routingActive) return;
     if (this.relay) await this.deactivate(false);
     const origin = validateServer(this.settings.server);
@@ -158,7 +173,7 @@ module.exports = class VaultSyncBridge extends Plugin {
     if (this.native) this.native.server = null;
     this.restoreBootstrap?.();
     this.restoreBootstrap = null;
-    if (this.native?.getHost === this.overrideGetHost)
+    if (this.native && this.overrideGetHost && this.native.getHost === this.overrideGetHost)
       this.native.getHost = this.originalGetHost;
     if (this.coordinator && this.lease)
       await this.coordinator.release(this.lease);
@@ -173,8 +188,25 @@ module.exports = class VaultSyncBridge extends Plugin {
       await this.saveData(this.settings);
     }
   }
+  addReturnToDesktopSetting(container) {
+    new Setting(container)
+      .setName("Desktop routing")
+      .setDesc("Sign out of Direct Sync before returning to the original Mac adapter.")
+      .addButton((button) =>
+        button.setButtonText("Use desktop routing after restart").onClick(() =>
+          this.run(async () => {
+            if (this.controller.session || this.direct.enabled)
+              throw Error("Sign out / disable Direct Sync first.");
+            this.persisted.macDirectMode = false;
+            await this.saveData({ ...this.persisted, macDirect: this.direct });
+            new Notice("Restart Obsidian to use desktop routing.");
+          }),
+        ),
+      );
+  }
   async onunload() {
-    await this.deactivate(false);
+    if (this.macDirect) await super.onunload();
+    else await this.deactivate(false);
   }
 };
 
@@ -257,6 +289,26 @@ class BridgeSettings extends PluginSettingTab {
           ? " — sandbox-tested experimental adapter."
           : " — unsupported; routing will remain inactive."),
     });
+    if (plugin.canUseMacDirect) {
+      new Setting(this.containerEl)
+        .setName("Direct Sync test mode")
+        .setDesc("Use the iPhone-style sign-in and vault picker in a clean Mac profile.")
+        .addButton((button) =>
+          button
+            .setButtonText(plugin.settings.macDirectMode ? "Cancel switch" : "Use Direct Sync after restart")
+            .onClick(async () => {
+              if (plugin.settings.enabled || plugin.routingActive) {
+                new Notice("Disable desktop routing first.");
+                return;
+              }
+              plugin.settings.macDirectMode = !plugin.settings.macDirectMode;
+              await plugin.saveData(plugin.settings);
+              this.display();
+              if (plugin.settings.macDirectMode)
+                new Notice("Restart Obsidian to open Direct Sync settings.");
+            }),
+        );
+    }
     new Setting(this.containerEl)
       .setName("Diagnostics")
       .setDesc("Contains event names and timestamps only.")
