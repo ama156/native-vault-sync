@@ -260,7 +260,7 @@ class DirectSettings extends PluginSettingTab {
         });
       }
     }
-    if (p.directKey === "macDirect") p.addReturnToDesktopSetting(this.containerEl);
+    if (p.directKey === "macDirect") p.addReturnToDesktopSetting?.(this.containerEl);
     new Setting(this.containerEl)
       .setName("Saved signed-out test profile")
       .setDesc(

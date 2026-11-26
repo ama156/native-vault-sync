@@ -13,6 +13,10 @@ Direct mode sends HTTPS account requests to the configured origin and opens a di
 
 The published [0.2.0 release](https://github.com/ama156/native-vault-sync/releases/tag/0.2.0) still contains the original Mac adapter. To build the development version from this repository, run `npm ci` and `npm run build:plugin`. Use the files from `plugin/dist/`.
 
+## Install the 0.2.1 prerelease with BRAT
+
+In BRAT, choose **Add beta plugin**, enter `ama156/native-vault-sync`, and select **0.2.1**. Enable Vault Sync Bridge in the disposable Mac vault. This release ships the Direct Sync adapter for macOS on Obsidian 1.15.1. Pin **0.2.0** for other platforms or an existing routed Mac connection. The server remains compatible with the new plugin. Build the same Mac-only assets using `node tools/build-mac-prerelease.cjs`.
+
 ## Try the local build
 
 1. Use a disposable Mac profile with Obsidian **1.15.1**, a fresh native account state, and an unconnected test vault. Enable the native Sync core plugin. If needed, create an encrypted remote **test vault** using the original desktop adapter in a separate profile.

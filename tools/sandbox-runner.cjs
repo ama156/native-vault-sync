@@ -45,8 +45,9 @@ const profile = path.join(sandbox, "profile-" + label),
   root = path.resolve(__dirname, "..");
 fs.mkdirSync(profile, { recursive: true, mode: 0o700 });
 fs.mkdirSync(plugin, { recursive: true, mode: 0o700 });
+const assets = process.env.SYNC_TEST_PLUGIN_ASSETS || path.join(root, "plugin/dist");
 for (const f of ["main.js", "manifest.json"])
-  fs.copyFileSync(path.join(root, "plugin/dist", f), path.join(plugin, f));
+  fs.copyFileSync(path.join(assets, f), path.join(plugin, f));
 if (!fs.existsSync(path.join(plugin, "data.json")))
   fs.writeFileSync(
     path.join(plugin, "data.json"),
